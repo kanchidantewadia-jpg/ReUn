@@ -1,22 +1,24 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import Navigation from "@/components/Navigation";
-import Footer from "@/components/Footer";
-import { AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { Upload, AlertCircle } from "lucide-react";
 
 const Report = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if user is logged in
@@ -42,18 +44,91 @@ const Report = () => {
     );
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate submission
-    setTimeout(() => {
-      setIsSubmitting(false);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to submit a report.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const formData = new FormData(e.currentTarget);
+      let photoUrl = null;
+
+      // Upload photo if provided
+      if (photoFile) {
+        const fileExt = photoFile.name.split('.').pop();
+        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('missing-persons-photos')
+          .upload(fileName, photoFile);
+
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('missing-persons-photos')
+          .getPublicUrl(fileName);
+        
+        photoUrl = publicUrl;
+      }
+
+      // Insert report into database
+      const { error: insertError } = await supabase
+        .from('missing_persons')
+        .insert({
+          user_id: user.id,
+          full_name: formData.get('fullName') as string,
+          age: formData.get('age') ? parseInt(formData.get('age') as string) : null,
+          gender: formData.get('gender') as string,
+          last_seen_location: formData.get('lastLocation') as string,
+          last_seen_date: formData.get('lastSeen') as string,
+          height: formData.get('height') as string,
+          weight: formData.get('weight') as string,
+          clothing_description: formData.get('clothing') as string,
+          distinguishing_features: formData.get('distinguishing') as string,
+          contact_name: formData.get('reporterName') as string,
+          contact_phone: formData.get('phone') as string,
+          contact_email: formData.get('email') as string,
+          additional_info: formData.get('circumstances') as string,
+          photo_url: photoUrl,
+        });
+
+      if (insertError) throw insertError;
+
       toast({
-        title: "Report submitted successfully",
-        description: "We've received your report and will begin the search process.",
+        title: "Report Submitted",
+        description: "Your report has been successfully submitted.",
       });
-    }, 1500);
+      
+      navigate('/search');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -76,6 +151,35 @@ const Report = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Photo Upload */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-primary" />
+                    Photo of Missing Person
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="photo">Upload Photo *</Label>
+                    <Input 
+                      id="photo" 
+                      name="photo" 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      className="cursor-pointer"
+                    />
+                    {photoPreview && (
+                      <div className="mt-4 relative w-full h-64 rounded-lg overflow-hidden border">
+                        <img 
+                          src={photoPreview} 
+                          alt="Preview" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Personal Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -86,32 +190,37 @@ const Report = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="fullName">Full Name *</Label>
-                      <Input id="fullName" placeholder="Enter full name" required />
+                      <Input id="fullName" name="fullName" placeholder="Enter full name" required />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="age">Age *</Label>
-                      <Input id="age" type="number" placeholder="Age" required />
+                      <Label htmlFor="age">Age</Label>
+                      <Input id="age" name="age" type="number" placeholder="Age" />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="gender">Gender</Label>
-                      <Select>
+                      <Select name="gender">
                         <SelectTrigger id="gender">
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="height">Height (cm)</Label>
-                      <Input id="height" type="number" placeholder="Height in cm" />
+                      <Label htmlFor="height">Height</Label>
+                      <Input id="height" name="height" placeholder="e.g., 5 feet 8 inches or 173cm" />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="weight">Weight</Label>
+                    <Input id="weight" name="weight" placeholder="e.g., 150 lbs or 68 kg" />
                   </div>
                 </div>
 
@@ -121,18 +230,19 @@ const Report = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="lastLocation">Last Known Location *</Label>
-                    <Input id="lastLocation" placeholder="City, area, or landmark" required />
+                    <Input id="lastLocation" name="lastLocation" placeholder="City, area, or landmark" required />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="lastSeen">Last Seen Date & Time *</Label>
-                    <Input id="lastSeen" type="datetime-local" required />
+                    <Label htmlFor="lastSeen">Last Seen Date *</Label>
+                    <Input id="lastSeen" name="lastSeen" type="date" required />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="clothing">Clothing Description</Label>
                     <Textarea 
-                      id="clothing" 
+                      id="clothing"
+                      name="clothing"
                       placeholder="Describe what they were wearing when last seen"
                       rows={3}
                     />
@@ -146,7 +256,8 @@ const Report = () => {
                   <div className="space-y-2">
                     <Label htmlFor="distinguishing">Distinguishing Features</Label>
                     <Textarea 
-                      id="distinguishing" 
+                      id="distinguishing"
+                      name="distinguishing"
                       placeholder="Scars, tattoos, birthmarks, or other identifying features"
                       rows={3}
                     />
@@ -155,7 +266,8 @@ const Report = () => {
                   <div className="space-y-2">
                     <Label htmlFor="circumstances">Circumstances of Disappearance *</Label>
                     <Textarea 
-                      id="circumstances" 
+                      id="circumstances"
+                      name="circumstances"
                       placeholder="Describe the circumstances surrounding their disappearance"
                       rows={4}
                       required
@@ -170,23 +282,17 @@ const Report = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="reporterName">Your Name *</Label>
-                      <Input id="reporterName" placeholder="Your full name" required />
+                      <Input id="reporterName" name="reporterName" placeholder="Your full name" required />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="relationship">Relationship *</Label>
-                      <Input id="relationship" placeholder="Your relationship to person" required />
+                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Input id="phone" name="phone" type="tel" placeholder="Your phone number" required />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number *</Label>
-                      <Input id="phone" type="tel" placeholder="Your phone number" required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address *</Label>
-                      <Input id="email" type="email" placeholder="Your email" required />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input id="email" name="email" type="email" placeholder="Your email" required />
                   </div>
                 </div>
 

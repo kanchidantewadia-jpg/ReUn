@@ -14,6 +14,148 @@ export type Database = {
   }
   public: {
     Tables: {
+      cctv_footage: {
+        Row: {
+          created_at: string
+          description: string | null
+          footage_url: string
+          id: string
+          location: string | null
+          missing_person_id: string
+          recorded_at: string | null
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          footage_url: string
+          id?: string
+          location?: string | null
+          missing_person_id: string
+          recorded_at?: string | null
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          footage_url?: string
+          id?: string
+          location?: string | null
+          missing_person_id?: string
+          recorded_at?: string | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cctv_footage_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "missing_persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          missing_person_id: string
+          sender_id: string
+          sender_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          missing_person_id: string
+          sender_id: string
+          sender_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          missing_person_id?: string
+          sender_id?: string
+          sender_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "missing_persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      missing_persons: {
+        Row: {
+          additional_info: string | null
+          age: number | null
+          clothing_description: string | null
+          contact_email: string | null
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          distinguishing_features: string | null
+          full_name: string
+          gender: string | null
+          height: string | null
+          id: string
+          last_seen_date: string
+          last_seen_location: string
+          photo_url: string | null
+          status: Database["public"]["Enums"]["missing_status"]
+          updated_at: string
+          user_id: string
+          weight: string | null
+        }
+        Insert: {
+          additional_info?: string | null
+          age?: number | null
+          clothing_description?: string | null
+          contact_email?: string | null
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          distinguishing_features?: string | null
+          full_name: string
+          gender?: string | null
+          height?: string | null
+          id?: string
+          last_seen_date: string
+          last_seen_location: string
+          photo_url?: string | null
+          status?: Database["public"]["Enums"]["missing_status"]
+          updated_at?: string
+          user_id: string
+          weight?: string | null
+        }
+        Update: {
+          additional_info?: string | null
+          age?: number | null
+          clothing_description?: string | null
+          contact_email?: string | null
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          distinguishing_features?: string | null
+          full_name?: string
+          gender?: string | null
+          height?: string | null
+          id?: string
+          last_seen_date?: string
+          last_seen_location?: string
+          photo_url?: string | null
+          status?: Database["public"]["Enums"]["missing_status"]
+          updated_at?: string
+          user_id?: string
+          weight?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -46,7 +188,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      missing_status: "missing" | "found" | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -173,6 +315,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      missing_status: ["missing", "found", "closed"],
+    },
   },
 } as const
