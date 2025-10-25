@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, AlertCircle } from "lucide-react";
+import { reportSchema, validateFile } from "@/lib/validationSchemas";
 
 const Report = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +73,50 @@ const Report = () => {
       }
 
       const formData = new FormData(e.currentTarget);
+      
+      // Validate form data
+      const formObject = {
+        full_name: formData.get('fullName') as string,
+        age: formData.get('age') ? parseInt(formData.get('age') as string) : undefined,
+        gender: formData.get('gender') as string || undefined,
+        height: formData.get('height') as string || undefined,
+        weight: formData.get('weight') as string || undefined,
+        last_seen_location: formData.get('lastLocation') as string,
+        last_seen_date: formData.get('lastSeen') as string,
+        clothing_description: formData.get('clothing') as string || undefined,
+        distinguishing_features: formData.get('distinguishing') as string || undefined,
+        additional_info: formData.get('circumstances') as string || undefined,
+        contact_name: formData.get('reporterName') as string,
+        contact_phone: formData.get('phone') as string,
+        contact_email: formData.get('email') as string || undefined,
+      };
+
+      const validationResult = reportSchema.safeParse(formObject);
+      
+      if (!validationResult.success) {
+        const firstError = validationResult.error.errors[0];
+        toast({
+          title: "Validation Error",
+          description: firstError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate photo if provided
+      if (photoFile) {
+        try {
+          validateFile(photoFile, 10 * 1024 * 1024, ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']);
+        } catch (error: any) {
+          toast({
+            title: "Invalid File",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       let photoUrl = null;
 
       // Upload photo if provided
@@ -91,24 +136,24 @@ const Report = () => {
         photoUrl = publicUrl;
       }
 
-      // Insert report into database
+      // Insert report into database with validated data
       const { error: insertError } = await supabase
         .from('missing_persons')
         .insert({
           user_id: user.id,
-          full_name: formData.get('fullName') as string,
-          age: formData.get('age') ? parseInt(formData.get('age') as string) : null,
-          gender: formData.get('gender') as string,
-          last_seen_location: formData.get('lastLocation') as string,
-          last_seen_date: formData.get('lastSeen') as string,
-          height: formData.get('height') as string,
-          weight: formData.get('weight') as string,
-          clothing_description: formData.get('clothing') as string,
-          distinguishing_features: formData.get('distinguishing') as string,
-          contact_name: formData.get('reporterName') as string,
-          contact_phone: formData.get('phone') as string,
-          contact_email: formData.get('email') as string,
-          additional_info: formData.get('circumstances') as string,
+          full_name: validationResult.data.full_name,
+          age: validationResult.data.age || null,
+          gender: validationResult.data.gender || null,
+          height: validationResult.data.height || null,
+          weight: validationResult.data.weight || null,
+          last_seen_location: validationResult.data.last_seen_location,
+          last_seen_date: validationResult.data.last_seen_date,
+          clothing_description: validationResult.data.clothing_description || null,
+          distinguishing_features: validationResult.data.distinguishing_features || null,
+          additional_info: validationResult.data.additional_info || null,
+          contact_name: validationResult.data.contact_name,
+          contact_phone: validationResult.data.contact_phone,
+          contact_email: validationResult.data.contact_email || null,
           photo_url: photoUrl,
         });
 

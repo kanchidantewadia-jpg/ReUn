@@ -12,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Calendar, User, Phone, Mail, Upload, Video } from "lucide-react";
+import { messageSchema, cctvUploadSchema, validateFile } from "@/lib/validationSchemas";
+import DOMPurify from 'dompurify';
 
 const PersonDetail = () => {
   const { id } = useParams();
@@ -102,13 +104,28 @@ const PersonDetail = () => {
         .eq('user_id', user.id)
         .single();
 
+      // Validate message
+      const validationResult = messageSchema.safeParse({
+        message: newMessage,
+        sender_name: profile?.full_name || 'Anonymous',
+      });
+
+      if (!validationResult.success) {
+        toast({
+          title: "Validation Error",
+          description: validationResult.error.errors[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('messages')
         .insert({
           missing_person_id: id,
           sender_id: user.id,
-          sender_name: profile?.full_name || 'Anonymous',
-          message: newMessage,
+          sender_name: validationResult.data.sender_name,
+          message: validationResult.data.message,
         });
 
       if (error) throw error;
@@ -128,6 +145,33 @@ const PersonDetail = () => {
 
     setIsUploadingCctv(true);
     try {
+      // Validate CCTV file
+      try {
+        validateFile(cctvFile, 100 * 1024 * 1024, ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/webm']);
+      } catch (error: any) {
+        toast({
+          title: "Invalid File",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate form data
+      const validationResult = cctvUploadSchema.safeParse({
+        location: cctvLocation || undefined,
+        description: cctvDescription || undefined,
+      });
+
+      if (!validationResult.success) {
+        toast({
+          title: "Validation Error",
+          description: validationResult.error.errors[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const fileExt = cctvFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
@@ -146,8 +190,8 @@ const PersonDetail = () => {
           missing_person_id: id,
           uploaded_by: user.id,
           footage_url: publicUrl,
-          location: cctvLocation,
-          description: cctvDescription,
+          location: validationResult.data.location || null,
+          description: validationResult.data.description || null,
         });
 
       if (insertError) throw insertError;
@@ -311,22 +355,35 @@ const PersonDetail = () => {
                   <CardTitle>Contact Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                    <span>{person.contact_name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <a href={`tel:${person.contact_phone}`} className="hover:underline">
-                      {person.contact_phone}
-                    </a>
-                  </div>
-                  {person.contact_email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <a href={`mailto:${person.contact_email}`} className="hover:underline">
-                        {person.contact_email}
-                      </a>
+                  {user ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <span>{person.contact_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <a href={`tel:${person.contact_phone}`} className="hover:underline">
+                          {person.contact_phone}
+                        </a>
+                      </div>
+                      {person.contact_email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-muted-foreground" />
+                          <a href={`mailto:${person.contact_email}`} className="hover:underline">
+                            {person.contact_email}
+                          </a>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="p-4 bg-secondary/50 rounded-lg text-center space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Contact information is only visible to registered users.
+                      </p>
+                      <Button size="sm" onClick={() => navigate('/auth')}>
+                        Sign in to view contact details
+                      </Button>
                     </div>
                   )}
                 </CardContent>
@@ -350,7 +407,9 @@ const PersonDetail = () => {
                         messages.map((msg) => (
                           <div key={msg.id} className="bg-secondary/50 rounded-lg p-3">
                             <p className="font-semibold text-sm">{msg.sender_name}</p>
-                            <p className="text-sm mt-1">{msg.message}</p>
+                            <p className="text-sm mt-1 whitespace-pre-wrap break-words">
+                              {DOMPurify.sanitize(msg.message, { ALLOWED_TAGS: [] })}
+                            </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               {new Date(msg.created_at).toLocaleString()}
                             </p>
