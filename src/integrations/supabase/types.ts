@@ -18,9 +18,11 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          face_match_confidence: number | null
           footage_url: string
           id: string
           location: string | null
+          matched_person_id: string | null
           missing_person_id: string
           recorded_at: string | null
           uploaded_by: string
@@ -28,9 +30,11 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          face_match_confidence?: number | null
           footage_url: string
           id?: string
           location?: string | null
+          matched_person_id?: string | null
           missing_person_id: string
           recorded_at?: string | null
           uploaded_by: string
@@ -38,14 +42,37 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          face_match_confidence?: number | null
           footage_url?: string
           id?: string
           location?: string | null
+          matched_person_id?: string | null
           missing_person_id?: string
           recorded_at?: string | null
           uploaded_by?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cctv_footage_matched_person_id_fkey"
+            columns: ["matched_person_id"]
+            isOneToOne: false
+            referencedRelation: "authenticated_missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cctv_footage_matched_person_id_fkey"
+            columns: ["matched_person_id"]
+            isOneToOne: false
+            referencedRelation: "missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cctv_footage_matched_person_id_fkey"
+            columns: ["matched_person_id"]
+            isOneToOne: false
+            referencedRelation: "public_missing_persons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cctv_footage_missing_person_id_fkey"
             columns: ["missing_person_id"]
@@ -191,28 +218,55 @@ export type Database = {
         Row: {
           created_at: string
           display_name: string
+          email_notifications: boolean | null
           full_name: string
           id: string
           show_real_name: boolean | null
+          sms_notifications: boolean | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           display_name: string
+          email_notifications?: boolean | null
           full_name: string
           id?: string
           show_real_name?: boolean | null
+          sms_notifications?: boolean | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           display_name?: string
+          email_notifications?: boolean | null
           full_name?: string
           id?: string
           show_real_name?: boolean | null
+          sms_notifications?: boolean | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -330,8 +384,16 @@ export type Database = {
     }
     Functions: {
       get_display_name: { Args: { user_uuid: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       missing_status: "missing" | "found" | "closed"
     }
     CompositeTypes: {
@@ -460,6 +522,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       missing_status: ["missing", "found", "closed"],
     },
   },
