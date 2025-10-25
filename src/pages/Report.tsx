@@ -137,7 +137,7 @@ const Report = () => {
       }
 
       // Insert report into database with validated data and default public visibility
-      const { error: insertError } = await supabase
+      const { data: reportData, error: insertError } = await supabase
         .from('missing_persons')
         .insert({
           user_id: user.id,
@@ -156,13 +156,32 @@ const Report = () => {
           contact_email: validationResult.data.contact_email || null,
           photo_url: photoUrl,
           visibility: 'public', // Default to public for community awareness
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
+      // Send confirmation email
+      if (reportData && validationResult.data.contact_email) {
+        try {
+          await supabase.functions.invoke("send-report-confirmation", {
+            body: {
+              reporterName: validationResult.data.contact_name,
+              reporterEmail: validationResult.data.contact_email,
+              missingPersonName: validationResult.data.full_name,
+              reportId: reportData.id,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send confirmation email:", emailError);
+          // Don't block the submission if email fails
+        }
+      }
+
       toast({
         title: "Report Submitted",
-        description: "Your report has been successfully submitted.",
+        description: "Your report has been successfully submitted. Check your email for confirmation.",
       });
       
       navigate('/search');

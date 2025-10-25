@@ -250,7 +250,7 @@ const PersonDetail = () => {
         .from('cctv-footage')
         .getPublicUrl(fileName);
 
-      const { error: insertError } = await supabase
+      const { data: cctvData, error: insertError } = await supabase
         .from('cctv_footage')
         .insert({
           missing_person_id: id,
@@ -258,7 +258,9 @@ const PersonDetail = () => {
           footage_url: publicUrl,
           location: validationResult.data.location || null,
           description: validationResult.data.description || null,
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) {
         console.error('Error saving footage metadata:', insertError);
@@ -281,9 +283,25 @@ const PersonDetail = () => {
         return;
       }
 
+      // Process face recognition
+      if (cctvData) {
+        try {
+          await supabase.functions.invoke("process-face-recognition", {
+            body: {
+              cctvFootageId: cctvData.id,
+              cctvImageUrl: publicUrl,
+              missingPersonId: id,
+            },
+          });
+        } catch (faceError) {
+          console.error("Face recognition processing error:", faceError);
+          // Don't block the upload if face recognition fails
+        }
+      }
+
       toast({
         title: "Success",
-        description: "CCTV footage uploaded successfully.",
+        description: "CCTV footage uploaded successfully. Processing for face matches...",
       });
 
       setCctvFile(null);
