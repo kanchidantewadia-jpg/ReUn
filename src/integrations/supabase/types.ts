@@ -50,6 +50,13 @@ export type Database = {
             foreignKeyName: "cctv_footage_missing_person_id_fkey"
             columns: ["missing_person_id"]
             isOneToOne: false
+            referencedRelation: "authenticated_missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cctv_footage_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
             referencedRelation: "missing_persons"
             referencedColumns: ["id"]
           },
@@ -69,7 +76,7 @@ export type Database = {
           message: string
           missing_person_id: string
           sender_id: string
-          sender_name: string
+          sender_name: string | null
         }
         Insert: {
           created_at?: string
@@ -77,7 +84,7 @@ export type Database = {
           message: string
           missing_person_id: string
           sender_id: string
-          sender_name: string
+          sender_name?: string | null
         }
         Update: {
           created_at?: string
@@ -85,9 +92,16 @@ export type Database = {
           message?: string
           missing_person_id?: string
           sender_id?: string
-          sender_name?: string
+          sender_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "authenticated_missing_persons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_missing_person_id_fkey"
             columns: ["missing_person_id"]
@@ -124,6 +138,7 @@ export type Database = {
           status: Database["public"]["Enums"]["missing_status"]
           updated_at: string
           user_id: string
+          visibility: string | null
           weight: string | null
         }
         Insert: {
@@ -145,6 +160,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["missing_status"]
           updated_at?: string
           user_id: string
+          visibility?: string | null
           weight?: string | null
         }
         Update: {
@@ -166,6 +182,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["missing_status"]
           updated_at?: string
           user_id?: string
+          visibility?: string | null
           weight?: string | null
         }
         Relationships: []
@@ -173,22 +190,28 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          display_name: string
           full_name: string
           id: string
+          show_real_name: boolean | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          display_name: string
           full_name: string
           id?: string
+          show_real_name?: boolean | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          display_name?: string
           full_name?: string
           id?: string
+          show_real_name?: boolean | null
           updated_at?: string
           user_id?: string
         }
@@ -196,6 +219,60 @@ export type Database = {
       }
     }
     Views: {
+      authenticated_missing_persons: {
+        Row: {
+          additional_info: string | null
+          age: number | null
+          clothing_description: string | null
+          created_at: string | null
+          distinguishing_features: string | null
+          full_name: string | null
+          gender: string | null
+          height: string | null
+          id: string | null
+          last_seen_date: string | null
+          last_seen_location: string | null
+          photo_url: string | null
+          status: Database["public"]["Enums"]["missing_status"] | null
+          updated_at: string | null
+          weight: string | null
+        }
+        Insert: {
+          additional_info?: string | null
+          age?: number | null
+          clothing_description?: string | null
+          created_at?: string | null
+          distinguishing_features?: string | null
+          full_name?: string | null
+          gender?: string | null
+          height?: string | null
+          id?: string | null
+          last_seen_date?: string | null
+          last_seen_location?: string | null
+          photo_url?: string | null
+          status?: Database["public"]["Enums"]["missing_status"] | null
+          updated_at?: string | null
+          weight?: string | null
+        }
+        Update: {
+          additional_info?: string | null
+          age?: number | null
+          clothing_description?: string | null
+          created_at?: string | null
+          distinguishing_features?: string | null
+          full_name?: string | null
+          gender?: string | null
+          height?: string | null
+          id?: string | null
+          last_seen_date?: string | null
+          last_seen_location?: string | null
+          photo_url?: string | null
+          status?: Database["public"]["Enums"]["missing_status"] | null
+          updated_at?: string | null
+          weight?: string | null
+        }
+        Relationships: []
+      }
       public_missing_persons: {
         Row: {
           additional_info: string | null
@@ -252,7 +329,7 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_display_name: { Args: { user_uuid: string }; Returns: string }
     }
     Enums: {
       missing_status: "missing" | "found" | "closed"

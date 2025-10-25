@@ -74,6 +74,9 @@ const Auth = () => {
       return;
     }
 
+    // Generate random display name for anonymity
+    const randomDisplayName = `User${Math.floor(Math.random() * 10000)}`;
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -81,6 +84,8 @@ const Auth = () => {
         emailRedirectTo: `${window.location.origin}/`,
         data: {
           full_name: fullName,
+          display_name: randomDisplayName,
+          show_real_name: false,
         },
       },
     });

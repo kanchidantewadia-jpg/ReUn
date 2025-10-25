@@ -18,7 +18,6 @@ export const reportSchema = z.object({
 
 export const messageSchema = z.object({
   message: z.string().trim().min(1, "Message cannot be empty").max(5000, "Message must be less than 5000 characters"),
-  sender_name: z.string().trim().min(1).max(100),
 });
 
 export const cctvUploadSchema = z.object({

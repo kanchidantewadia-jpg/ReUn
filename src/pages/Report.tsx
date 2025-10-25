@@ -136,7 +136,7 @@ const Report = () => {
         photoUrl = publicUrl;
       }
 
-      // Insert report into database with validated data
+      // Insert report into database with validated data and default public visibility
       const { error: insertError } = await supabase
         .from('missing_persons')
         .insert({
@@ -155,6 +155,7 @@ const Report = () => {
           contact_phone: validationResult.data.contact_phone,
           contact_email: validationResult.data.contact_email || null,
           photo_url: photoUrl,
+          visibility: 'public', // Default to public for community awareness
         });
 
       if (insertError) throw insertError;

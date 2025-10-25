@@ -43,7 +43,7 @@ const PersonDetail = () => {
   const fetchPersonDetails = async () => {
     try {
       const { data: personData, error: personError } = await supabase
-        .from('missing_persons')
+        .from('public_missing_persons')
         .select('*')
         .eq('id', id)
         .single();
@@ -51,14 +51,30 @@ const PersonDetail = () => {
       if (personError) throw personError;
       setPerson(personData);
 
+      // Fetch messages with display names using RPC function
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
-        .select('*')
+        .select('id, message, created_at, sender_id')
         .eq('missing_person_id', id)
         .order('created_at', { ascending: true });
 
       if (messagesError) throw messagesError;
-      setMessages(messagesData || []);
+      
+      // Fetch display names for each message
+      if (messagesData) {
+        const messagesWithNames = await Promise.all(
+          messagesData.map(async (msg) => {
+            const { data: displayName } = await supabase.rpc('get_display_name', {
+              user_uuid: msg.sender_id
+            });
+            return {
+              ...msg,
+              sender_name: displayName || 'Anonymous User'
+            };
+          })
+        );
+        setMessages(messagesWithNames);
+      }
     } catch (error) {
       console.error('Error fetching person details:', error);
       toast({
@@ -82,8 +98,16 @@ const PersonDetail = () => {
           table: 'messages',
           filter: `missing_person_id=eq.${id}`,
         },
-        (payload) => {
-          setMessages((current) => [...current, payload.new]);
+        async (payload) => {
+          const newMessage = payload.new as any;
+          // Fetch display name for new message
+          const { data: displayName } = await supabase.rpc('get_display_name', {
+            user_uuid: newMessage.sender_id
+          });
+          setMessages((current) => [
+            ...current,
+            { ...newMessage, sender_name: displayName || 'Anonymous User' }
+          ]);
         }
       )
       .subscribe();
@@ -110,16 +134,9 @@ const PersonDetail = () => {
     if (!newMessage.trim()) return;
 
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', user.id)
-        .single();
-
-      // Validate message
+      // Validate message (no sender_name needed)
       const validationResult = messageSchema.safeParse({
         message: newMessage,
-        sender_name: profile?.full_name || 'Anonymous',
       });
 
       if (!validationResult.success) {
@@ -136,7 +153,6 @@ const PersonDetail = () => {
         .insert({
           missing_person_id: id,
           sender_id: user.id,
-          sender_name: validationResult.data.sender_name,
           message: validationResult.data.message,
         });
 
