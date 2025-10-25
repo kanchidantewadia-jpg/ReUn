@@ -7,16 +7,41 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { feedbackSchema } from "@/lib/validationSchemas";
 
 const Feedback = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rating, setRating] = useState(0);
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const formObject = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      type: formData.get('type') as string,
+      rating: rating,
+      subject: formData.get('subject') as string,
+      message: formData.get('message') as string,
+      suggestions: (formData.get('suggestions') as string) || undefined,
+    };
+
+    // Validate form data
+    const validationResult = feedbackSchema.safeParse(formObject);
+    
+    if (!validationResult.success) {
+      toast({
+        title: "Validation Error",
+        description: validationResult.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     setTimeout(() => {
@@ -26,6 +51,7 @@ const Feedback = () => {
         description: "Thank you for helping us improve ReUn!",
       });
       setRating(0);
+      (e.target as HTMLFormElement).reset();
     }, 1500);
   };
 
@@ -37,7 +63,7 @@ const Feedback = () => {
         {/* Hero Section */}
         <section className="py-20 bg-gradient-to-br from-primary/10 to-accent/10">
           <div className="container mx-auto px-4 text-center">
-            <MessageSquare className="w-16 h-16 text-primary mx-auto mb-6" />
+            <Star className="w-16 h-16 text-primary mx-auto mb-6" />
             <h1 className="text-4xl md:text-5xl font-bold mb-6">We Value Your Feedback</h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Help us improve our services and better serve families in need
@@ -62,18 +88,18 @@ const Feedback = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Name *</Label>
-                        <Input id="name" placeholder="Your name" required />
+                        <Input id="name" name="name" placeholder="Your name" required />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Email *</Label>
-                        <Input id="email" type="email" placeholder="your.email@example.com" required />
+                        <Input id="email" name="email" type="email" placeholder="your.email@example.com" required />
                       </div>
                     </div>
 
                     {/* Feedback Type */}
                     <div className="space-y-2">
                       <Label htmlFor="type">Feedback Type *</Label>
-                      <Select required>
+                      <Select name="type" required>
                         <SelectTrigger id="type">
                           <SelectValue placeholder="Select feedback type" />
                         </SelectTrigger>
@@ -122,7 +148,7 @@ const Feedback = () => {
                     {/* Feedback Subject */}
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject *</Label>
-                      <Input id="subject" placeholder="Brief summary of your feedback" required />
+                      <Input id="subject" name="subject" placeholder="Brief summary of your feedback" required />
                     </div>
 
                     {/* Detailed Feedback */}
@@ -130,6 +156,7 @@ const Feedback = () => {
                       <Label htmlFor="message">Detailed Feedback *</Label>
                       <Textarea
                         id="message"
+                        name="message"
                         placeholder="Please provide detailed feedback. The more information you share, the better we can assist you."
                         rows={6}
                         required
@@ -141,6 +168,7 @@ const Feedback = () => {
                       <Label htmlFor="suggestions">Suggestions for Improvement (Optional)</Label>
                       <Textarea
                         id="suggestions"
+                        name="suggestions"
                         placeholder="How can we make ReUn better?"
                         rows={4}
                       />

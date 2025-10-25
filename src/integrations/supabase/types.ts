@@ -53,6 +53,13 @@ export type Database = {
             referencedRelation: "missing_persons"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cctv_footage_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "public_missing_persons"
+            referencedColumns: ["id"]
+          },
         ]
       }
       messages: {
@@ -86,6 +93,13 @@ export type Database = {
             columns: ["missing_person_id"]
             isOneToOne: false
             referencedRelation: "missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "public_missing_persons"
             referencedColumns: ["id"]
           },
         ]
@@ -182,7 +196,60 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_missing_persons: {
+        Row: {
+          additional_info: string | null
+          age: number | null
+          clothing_description: string | null
+          created_at: string | null
+          distinguishing_features: string | null
+          full_name: string | null
+          gender: string | null
+          height: string | null
+          id: string | null
+          last_seen_date: string | null
+          last_seen_location: string | null
+          photo_url: string | null
+          status: Database["public"]["Enums"]["missing_status"] | null
+          updated_at: string | null
+          weight: string | null
+        }
+        Insert: {
+          additional_info?: string | null
+          age?: number | null
+          clothing_description?: string | null
+          created_at?: string | null
+          distinguishing_features?: string | null
+          full_name?: string | null
+          gender?: string | null
+          height?: string | null
+          id?: string | null
+          last_seen_date?: string | null
+          last_seen_location?: string | null
+          photo_url?: string | null
+          status?: Database["public"]["Enums"]["missing_status"] | null
+          updated_at?: string | null
+          weight?: string | null
+        }
+        Update: {
+          additional_info?: string | null
+          age?: number | null
+          clothing_description?: string | null
+          created_at?: string | null
+          distinguishing_features?: string | null
+          full_name?: string | null
+          gender?: string | null
+          height?: string | null
+          id?: string | null
+          last_seen_date?: string | null
+          last_seen_location?: string | null
+          photo_url?: string | null
+          status?: Database["public"]["Enums"]["missing_status"] | null
+          updated_at?: string | null
+          weight?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

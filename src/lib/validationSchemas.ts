@@ -27,6 +27,18 @@ export const cctvUploadSchema = z.object({
   recorded_at: z.string().optional(),
 });
 
+export const feedbackSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+  email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters"),
+  type: z.enum(['suggestion', 'bug', 'compliment', 'complaint', 'feature', 'other'], {
+    errorMap: () => ({ message: "Please select a feedback type" })
+  }),
+  rating: z.number().int().min(1, "Rating must be at least 1").max(5, "Rating must be at most 5"),
+  subject: z.string().trim().min(1, "Subject is required").max(200, "Subject must be less than 200 characters"),
+  message: z.string().trim().min(1, "Feedback is required").max(5000, "Feedback must be less than 5000 characters"),
+  suggestions: z.string().max(2000, "Suggestions must be less than 2000 characters").optional(),
+});
+
 export const validateFile = (file: File, maxSize: number, allowedTypes: string[]) => {
   if (file.size > maxSize) {
     throw new Error(`File size must be less than ${maxSize / 1024 / 1024}MB`);

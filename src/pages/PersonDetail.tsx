@@ -95,7 +95,19 @@ const PersonDetail = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
+    
+    // Check user authentication first
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to send messages.",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
+    
+    if (!newMessage.trim()) return;
 
     try {
       const { data: profile } = await supabase
@@ -128,7 +140,26 @@ const PersonDetail = () => {
           message: validationResult.data.message,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error sending message:', error);
+        
+        // Check for auth-specific errors
+        if (error.code === 'PGRST301' || error.message.includes('row-level security')) {
+          toast({
+            title: "Authentication Required",
+            description: "Your session may have expired. Please sign in again.",
+            variant: "destructive",
+          });
+          navigate('/auth');
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to send message. Please try again.",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
       setNewMessage("");
     } catch (error: any) {
       toast({
@@ -141,7 +172,26 @@ const PersonDetail = () => {
 
   const handleCctvUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cctvFile || !user) return;
+    
+    // Check user authentication first
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to upload footage.",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
+    
+    if (!cctvFile) {
+      toast({
+        title: "Error",
+        description: "Please select a file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsUploadingCctv(true);
     try {
@@ -194,7 +244,26 @@ const PersonDetail = () => {
           description: validationResult.data.description || null,
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Error saving footage metadata:', insertError);
+        
+        // Check for auth-specific errors
+        if (insertError.code === 'PGRST301' || insertError.message.includes('row-level security')) {
+          toast({
+            title: "Authentication Required",
+            description: "Your session may have expired. Please sign in again.",
+            variant: "destructive",
+          });
+          navigate('/auth');
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to save footage metadata. Please try again.",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
 
       toast({
         title: "Success",

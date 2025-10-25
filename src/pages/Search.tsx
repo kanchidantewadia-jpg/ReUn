@@ -34,7 +34,7 @@ const Search = () => {
   const fetchMissingPersons = async () => {
     try {
       const { data, error } = await supabase
-        .from('missing_persons')
+        .from('public_missing_persons')
         .select('*')
         .order('created_at', { ascending: false });
 
