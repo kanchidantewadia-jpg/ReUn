@@ -84,28 +84,38 @@ const Auth = () => {
       return;
     }
 
-    // Store signup data and send OTP
+    // Store signup data and send OTP via backend function (Twilio)
     setSignupData({ fullName, email, password, phone });
 
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-    });
-
-    if (error) {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ action: "request", phone, purpose: "signup" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data?.error || "Failed to send code");
+      }
+      setSignupStep("verify");
+      toast({
+        title: "Verification code sent",
+        description: "Please check your phone for the OTP.",
+      });
+    } catch (err: any) {
       toast({
         title: "Error sending verification code",
-        description: error.message,
+        description: err.message || String(err),
         variant: "destructive",
       });
       setIsLoading(false);
       return;
     }
 
-    setSignupStep("verify");
-    toast({
-      title: "Verification code sent",
-      description: "Please check your phone for the OTP.",
-    });
     setIsLoading(false);
   };
 
@@ -113,17 +123,25 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // First verify the phone OTP
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      phone: signupData.phone,
-      token: otp,
-      type: "sms",
-    });
-
-    if (verifyError) {
+    // First verify the phone OTP via backend function
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ action: "verify", phone: signupData.phone, code: otp, purpose: "signup" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data?.error || "Verification failed");
+      }
+    } catch (err: any) {
       toast({
         title: "Invalid verification code",
-        description: verifyError.message,
+        description: err.message || String(err),
         variant: "destructive",
       });
       setIsLoading(false);
@@ -273,7 +291,7 @@ const Auth = () => {
                         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                       />
                     </svg>
-                    Continue with Google
+                       Continue with Google
                   </Button>
                 </form>
               </TabsContent>
@@ -310,9 +328,9 @@ const Auth = () => {
                         placeholder="+1234567890"
                         required
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Include country code (e.g., +1 for US)
-                      </p>
+                       <p className="text-xs text-muted-foreground">
+                         Phone must be in E.164 format, e.g., +1234567890
+                       </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-password">Password</Label>
@@ -375,7 +393,7 @@ const Auth = () => {
                           d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                         />
                       </svg>
-                      Continue with Google
+                       Continue with Google
                     </Button>
                   </form>
                 ) : (

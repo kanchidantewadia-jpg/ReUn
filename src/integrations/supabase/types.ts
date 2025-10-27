@@ -214,6 +214,39 @@ export type Database = {
         }
         Relationships: []
       }
+      otp_codes: {
+        Row: {
+          attempts: number
+          code: string
+          consumed: boolean
+          created_at: string
+          expires_at: string
+          id: string
+          phone: string
+          purpose: string
+        }
+        Insert: {
+          attempts?: number
+          code: string
+          consumed?: boolean
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone: string
+          purpose?: string
+        }
+        Update: {
+          attempts?: number
+          code?: string
+          consumed?: boolean
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone?: string
+          purpose?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
