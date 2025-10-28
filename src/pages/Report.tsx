@@ -18,6 +18,7 @@ const Report = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [gender, setGender] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -78,7 +79,7 @@ const Report = () => {
       const formObject = {
         full_name: formData.get('fullName') as string,
         age: formData.get('age') ? parseInt(formData.get('age') as string) : undefined,
-        gender: formData.get('gender') as string || undefined,
+        gender: gender || undefined,
         height: formData.get('height') as string || undefined,
         weight: formData.get('weight') as string || undefined,
         last_seen_location: formData.get('lastLocation') as string,
@@ -266,7 +267,7 @@ const Report = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="gender">Gender</Label>
-                      <Select name="gender">
+                      <Select value={gender} onValueChange={setGender}>
                         <SelectTrigger id="gender">
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
