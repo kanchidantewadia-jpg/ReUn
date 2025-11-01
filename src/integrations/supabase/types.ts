@@ -96,6 +96,76 @@ export type Database = {
           },
         ]
       }
+      community_sightings: {
+        Row: {
+          created_at: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          missing_person_id: string
+          reporter_name: string | null
+          reporter_phone: string | null
+          sighting_date: string | null
+          sighting_description: string | null
+          sighting_location: string
+          sighting_photo_url: string | null
+          source: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          missing_person_id: string
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          sighting_date?: string | null
+          sighting_description?: string | null
+          sighting_location: string
+          sighting_photo_url?: string | null
+          source?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          missing_person_id?: string
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          sighting_date?: string | null
+          sighting_description?: string | null
+          sighting_location?: string
+          sighting_photo_url?: string | null
+          source?: string | null
+          verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_sightings_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "authenticated_missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_sightings_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_sightings_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "public_missing_persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string
