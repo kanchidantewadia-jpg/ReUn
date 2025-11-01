@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Calendar, User, Phone, Mail, Upload, Video } from "lucide-react";
+import { MapPin, Calendar, User, Phone, Mail, Upload, Video, Eye } from "lucide-react";
 import { messageSchema, cctvUploadSchema, validateFile } from "@/lib/validationSchemas";
 import DOMPurify from 'dompurify';
+import PredictiveMap from "@/components/PredictiveMap";
 
 const PersonDetail = () => {
   const { id } = useParams();
@@ -28,6 +29,7 @@ const PersonDetail = () => {
   const [cctvLocation, setCctvLocation] = useState("");
   const [cctvDescription, setCctvDescription] = useState("");
   const [isUploadingCctv, setIsUploadingCctv] = useState(false);
+  const [sightings, setSightings] = useState<any[]>([]);
 
   useEffect(() => {
     fetchPersonDetails();
@@ -75,6 +77,16 @@ const PersonDetail = () => {
         );
         setMessages(messagesWithNames);
       }
+
+      // Fetch community sightings
+      const { data: sightingsData, error: sightingsError } = await supabase
+        .from('community_sightings')
+        .select('*')
+        .eq('missing_person_id', id)
+        .order('sighting_date', { ascending: false });
+
+      if (sightingsError) throw sightingsError;
+      setSightings(sightingsData || []);
     } catch (error) {
       console.error('Error fetching person details:', error);
       toast({
@@ -400,6 +412,57 @@ const PersonDetail = () => {
                   )}
                   {person.additional_info && (
                     <p><strong>Additional Info:</strong> {person.additional_info}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5" />
+                    Predictive Search Area & Community Sightings
+                  </CardTitle>
+                  <CardDescription>
+                    Last seen location and reported sightings within 300-mile radius
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <PredictiveMap
+                    lastSeenLocation={person.last_seen_location}
+                    sightings={sightings}
+                  />
+                  
+                  {sightings.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <Eye className="w-4 h-4" />
+                        Recent Sightings ({sightings.length})
+                      </h4>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {sightings.map((sighting) => (
+                          <div
+                            key={sighting.id}
+                            className="p-3 bg-secondary/30 rounded-lg space-y-1 border border-border"
+                          >
+                            <div className="flex justify-between items-start">
+                              <p className="font-medium text-sm">{sighting.sighting_location}</p>
+                              {sighting.verified && (
+                                <Badge variant="default" className="text-xs">Verified</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(sighting.sighting_date).toLocaleString()}
+                            </p>
+                            {sighting.sighting_description && (
+                              <p className="text-sm">{sighting.sighting_description}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              Source: {sighting.source === 'sms' ? 'SMS Report' : 'Community Report'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
