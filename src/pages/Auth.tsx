@@ -65,6 +65,30 @@ const Auth = () => {
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirm") as string;
 
+    // Password validation
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasNumberOrSpecial = /[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+    
+    if (!hasUpperCase) {
+      toast({
+        title: "Weak password",
+        description: "Password must contain at least one uppercase letter.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+    
+    if (!hasNumberOrSpecial) {
+      toast({
+        title: "Weak password",
+        description: "Password must contain at least one number or special character.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast({
         title: "Passwords don't match",
@@ -253,6 +277,9 @@ const Auth = () => {
                       required
                       minLength={6}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Must contain: 1 uppercase letter, 1 number or special character
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-confirm">Confirm Password</Label>

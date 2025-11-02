@@ -12,6 +12,7 @@ import About from "./pages/About";
 import Help from "./pages/Help";
 import Feedback from "./pages/Feedback";
 import Admin from "./pages/Admin";
+import DroneMap from "./pages/DroneMap";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/help" element={<Help />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/drone-map" element={<DroneMap />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

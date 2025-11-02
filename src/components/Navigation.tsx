@@ -54,6 +54,7 @@ const Navigation = () => {
     { name: "Home", path: "/" },
     { name: "Search", path: "/search" },
     { name: "Report Missing", path: "/report" },
+    { name: "Drone Map", path: "/drone-map" },
     { name: "About", path: "/about" },
     { name: "Help", path: "/help" },
     { name: "Feedback", path: "/feedback" },
