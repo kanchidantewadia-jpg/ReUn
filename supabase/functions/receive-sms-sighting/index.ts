@@ -6,6 +6,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Security helper functions
+function sanitizeInput(input: string, maxLength: number = 500): string {
+  if (!input) return '';
+  let sanitized = input.trim().slice(0, maxLength);
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  return sanitized;
+}
+
+function escapeSqlWildcards(input: string): string {
+  return input.replace(/[%_]/g, '\\$&');
+}
+
+function escapeXml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 interface SMSSightingData {
   From: string;
   Body: string;
@@ -36,13 +57,15 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Sanitize input data
+    const sanitizedBody = sanitizeInput(body, 500);
+    const sanitizedFrom = sanitizeInput(from, 20);
+
     // Parse SMS format: "SEEN [name/id] at [location] - [description]"
-    // Example: "SEEN John Doe at Main Street Station - wearing blue jacket"
     const smsPattern = /SEEN\s+(.+?)\s+at\s+(.+?)(?:\s+-\s+(.+))?$/i;
-    const match = body.match(smsPattern);
+    const match = sanitizedBody.match(smsPattern);
 
     if (!match) {
-      // Invalid format - send help message back
       console.log("Invalid SMS format");
       return new Response(
         '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Invalid format. Use: SEEN [person name] at [location] - [description]</Message></Response>',
@@ -53,15 +76,27 @@ serve(async (req) => {
       );
     }
 
-    const personName = match[1].trim();
-    const location = match[2].trim();
-    const description = match[3]?.trim() || "";
+    // Sanitize and validate extracted data
+    const personName = sanitizeInput(match[1].trim(), 200);
+    const location = sanitizeInput(match[2].trim(), 500);
+    const description = match[3] ? sanitizeInput(match[3].trim(), 500) : "";
+    
+    if (!personName || !location) {
+      return new Response(
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Invalid format. Please use: SEEN [Name] AT [Location]</Message></Response>`,
+        { 
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "text/xml" } 
+        }
+      );
+    }
 
-    // Find matching missing person by name (fuzzy match)
+    // Find matching missing person by name (escape wildcards to prevent injection)
+    const escapedPersonName = escapeSqlWildcards(personName);
     const { data: missingPersons, error: searchError } = await supabase
       .from("missing_persons")
       .select("id, full_name")
-      .ilike("full_name", `%${personName}%`)
+      .ilike("full_name", `%${escapedPersonName}%`)
       .limit(1);
 
     if (searchError || !missingPersons || missingPersons.length === 0) {
@@ -78,14 +113,19 @@ serve(async (req) => {
     const missingPerson = missingPersons[0];
     console.log(`Matched to missing person: ${missingPerson.full_name}`);
 
+    // Sanitize reporter location data
+    const reporterLocation = city && state 
+      ? sanitizeInput(`${city}, ${state}`, 100)
+      : "SMS Reporter";
+
     // Insert sighting record
     const { data: sighting, error: insertError } = await supabase
       .from("community_sightings")
       .insert({
         missing_person_id: missingPerson.id,
-        reporter_phone: from,
-        sighting_location: `${location} (${city}, ${state})`.trim(),
-        sighting_description: description,
+        reporter_phone: sanitizedFrom,
+        sighting_location: `${location} (${reporterLocation})`.trim(),
+        sighting_description: description || `SMS report: ${sanitizedBody}`,
         source: "sms",
         verified: false,
       })
@@ -105,9 +145,13 @@ serve(async (req) => {
 
     console.log("Sighting recorded successfully:", sighting.id);
 
+    // Escape user data in XML response to prevent XML injection
+    const escapedName = escapeXml(missingPerson.full_name);
+    const escapedLocation = escapeXml(location);
+
     // Send confirmation SMS
     return new Response(
-      `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Thank you! Your sighting of ${missingPerson.full_name} at ${location} has been recorded. Reference ID: ${sighting.id.substring(0, 8)}</Message></Response>`,
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Thank you! Your sighting of ${escapedName} at ${escapedLocation} has been recorded. Reference ID: ${sighting.id.substring(0, 8)}</Message></Response>`,
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "text/xml" },
@@ -115,6 +159,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error in receive-sms-sighting:", error);
+    // Generic error message (don't leak internal details)
     return new Response(
       '<?xml version="1.0" encoding="UTF-8"?><Response><Message>System error. Please try again later.</Message></Response>',
       {

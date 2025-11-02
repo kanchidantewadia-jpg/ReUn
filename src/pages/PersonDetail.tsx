@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Calendar, User, Phone, Mail, Upload, Video, Eye } from "lucide-react";
+import { SignedImage } from "@/components/SignedImage";
 import { messageSchema, cctvUploadSchema, validateFile } from "@/lib/validationSchemas";
 import DOMPurify from 'dompurify';
 import PredictiveMap from "@/components/PredictiveMap";
@@ -258,6 +259,8 @@ const PersonDetail = () => {
 
       if (uploadError) throw uploadError;
 
+      // Store file path (buckets are now private, will use signed URLs)
+
       const { data: { publicUrl } } = supabase.storage
         .from('cctv-footage')
         .getPublicUrl(fileName);
@@ -382,8 +385,9 @@ const PersonDetail = () => {
                 </CardHeader>
                 {person.photo_url && (
                   <div className="px-6">
-                    <img
-                      src={person.photo_url}
+                    <SignedImage
+                      bucket="missing-persons-photos"
+                      path={person.photo_url}
                       alt={person.full_name}
                       className="w-full h-96 object-cover rounded-lg"
                     />

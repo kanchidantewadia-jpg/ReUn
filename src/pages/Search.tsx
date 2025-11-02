@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import { SignedImage } from "@/components/SignedImage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,8 +103,9 @@ const Search = () => {
                   <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
                     {person.photo_url && (
                       <div className="w-full h-48 overflow-hidden rounded-t-lg">
-                        <img
-                          src={person.photo_url}
+                        <SignedImage
+                          bucket="missing-persons-photos"
+                          path={person.photo_url}
                           alt={person.full_name}
                           className="w-full h-full object-cover"
                         />

@@ -130,11 +130,8 @@ const Report = () => {
 
         if (uploadError) throw uploadError;
         
-        const { data: { publicUrl } } = supabase.storage
-          .from('missing-persons-photos')
-          .getPublicUrl(fileName);
-        
-        photoUrl = publicUrl;
+        // Store the file path instead of public URL (buckets are now private)
+        photoUrl = fileName;
       }
 
       // Insert report into database with validated data and default public visibility
