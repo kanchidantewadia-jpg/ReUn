@@ -225,16 +225,27 @@ export type Database = {
           contact_phone: string
           created_at: string
           distinguishing_features: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
           full_name: string
           gender: string | null
           height: string | null
           id: string
+          is_minor: boolean | null
+          is_resolved: boolean | null
           last_seen_date: string
           last_seen_location: string
           photo_url: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
           status: Database["public"]["Enums"]["missing_status"]
           updated_at: string
           user_id: string
+          verification_notes: string | null
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
           visibility: string | null
           weight: string | null
         }
@@ -247,16 +258,27 @@ export type Database = {
           contact_phone: string
           created_at?: string
           distinguishing_features?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           full_name: string
           gender?: string | null
           height?: string | null
           id?: string
+          is_minor?: boolean | null
+          is_resolved?: boolean | null
           last_seen_date: string
           last_seen_location: string
           photo_url?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
           status?: Database["public"]["Enums"]["missing_status"]
           updated_at?: string
           user_id: string
+          verification_notes?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
           visibility?: string | null
           weight?: string | null
         }
@@ -269,16 +291,27 @@ export type Database = {
           contact_phone?: string
           created_at?: string
           distinguishing_features?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           full_name?: string
           gender?: string | null
           height?: string | null
           id?: string
+          is_minor?: boolean | null
+          is_resolved?: boolean | null
           last_seen_date?: string
           last_seen_location?: string
           photo_url?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
           status?: Database["public"]["Enums"]["missing_status"]
           updated_at?: string
           user_id?: string
+          verification_notes?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
           visibility?: string | null
           weight?: string | null
         }

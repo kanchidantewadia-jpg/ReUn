@@ -134,6 +134,9 @@ const DroneMap = () => {
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Real-time drone deployment and satellite imagery analysis for enhanced search coverage
             </p>
+            <Badge variant="outline" className="bg-accent/10 text-accent-foreground border-accent">
+              Coming Soon
+            </Badge>
           </div>
 
           <Tabs defaultValue="drones" className="w-full">

@@ -154,6 +154,10 @@ const Report = () => {
           contact_email: validationResult.data.contact_email || null,
           photo_url: photoUrl,
           visibility: 'public', // Default to public for community awareness
+          is_minor: formData.get('isMinor') === 'on',
+          emergency_contact_name: formData.get('emergencyName') as string || null,
+          emergency_contact_phone: formData.get('emergencyPhone') as string || null,
+          emergency_contact_relation: formData.get('emergencyRelation') as string || null,
         })
         .select()
         .single();
@@ -285,6 +289,18 @@ const Report = () => {
                     <Label htmlFor="weight">Weight</Label>
                     <Input id="weight" name="weight" placeholder="e.g., 150 lbs or 68 kg" />
                   </div>
+                  
+                  <div className="flex items-center space-x-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="isMinor"
+                      name="isMinor"
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    <Label htmlFor="isMinor" className="text-sm font-normal cursor-pointer">
+                      This person is under 18 years old (additional verification required)
+                    </Label>
+                  </div>
                 </div>
 
                 {/* Last Known Location */}
@@ -356,6 +372,30 @@ const Report = () => {
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address *</Label>
                     <Input id="email" name="email" type="email" placeholder="Your email" required />
+                  </div>
+                </div>
+
+                {/* Emergency Contact */}
+                <div className="space-y-4 pt-2 border-t">
+                  <h3 className="text-lg font-semibold">Emergency Contact (Optional but Recommended)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Provide an additional contact person who can be reached if you're unavailable
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="emergencyName">Emergency Contact Name</Label>
+                      <Input id="emergencyName" name="emergencyName" placeholder="Full name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="emergencyPhone">Emergency Contact Phone</Label>
+                      <Input id="emergencyPhone" name="emergencyPhone" type="tel" placeholder="Phone number" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="emergencyRelation">Relationship to Missing Person</Label>
+                    <Input id="emergencyRelation" name="emergencyRelation" placeholder="e.g., Mother, Brother, Friend" />
                   </div>
                 </div>
 

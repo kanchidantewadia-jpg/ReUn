@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Calendar, User, Phone, Mail, Upload, Video, Eye } from "lucide-react";
+import { MapPin, Calendar, User, Phone, Mail, Upload, Video, Eye, AlertCircle } from "lucide-react";
 import { SignedImage } from "@/components/SignedImage";
 import { messageSchema, cctvUploadSchema, validateFile } from "@/lib/validationSchemas";
 import DOMPurify from 'dompurify';
@@ -31,6 +31,8 @@ const PersonDetail = () => {
   const [cctvDescription, setCctvDescription] = useState("");
   const [isUploadingCctv, setIsUploadingCctv] = useState(false);
   const [sightings, setSightings] = useState<any[]>([]);
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolutionNotes, setResolutionNotes] = useState("");
 
   useEffect(() => {
     fetchPersonDetails();
@@ -333,6 +335,58 @@ const PersonDetail = () => {
     }
   };
 
+  const handleMarkAsResolved = async () => {
+    if (!user || !person) return;
+    
+    // Check if user is the owner of the report
+    const { data: reportData } = await supabase
+      .from('missing_persons')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+    
+    if (!reportData || reportData.user_id !== user.id) {
+      toast({
+        title: "Unauthorized",
+        description: "Only the original reporter can mark this case as resolved.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsResolving(true);
+    try {
+      const { error } = await supabase
+        .from('missing_persons')
+        .update({
+          is_resolved: true,
+          resolved_at: new Date().toISOString(),
+          resolution_notes: resolutionNotes || null,
+          status: 'found',
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Case Marked as Resolved",
+        description: "Thank you for updating the status. We're glad to hear this case has been resolved.",
+      });
+      
+      // Refresh person details
+      await fetchPersonDetails();
+      setResolutionNotes("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to mark case as resolved.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResolving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -368,6 +422,37 @@ const PersonDetail = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
+              {person.is_resolved && (
+                <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-500">
+                        ✓ RESOLVED
+                      </Badge>
+                      <span className="text-sm">
+                        This case was marked as resolved on {new Date(person.resolved_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {person.resolution_notes && (
+                      <p className="mt-2 text-sm text-muted-foreground">{person.resolution_notes}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+              
+              {person.is_minor && (
+                <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+                      <AlertCircle className="w-5 h-5" />
+                      <span className="text-sm font-semibold">
+                        CHILD CASE: This person is under 18 years old. This case has priority status.
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
               <Card>
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -378,9 +463,16 @@ const PersonDetail = () => {
                         {person.gender && ` • ${person.gender}`}
                       </CardDescription>
                     </div>
-                    <Badge className={person.status === 'missing' ? 'bg-red-500' : 'bg-green-500'}>
-                      {person.status}
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge className={person.status === 'missing' ? 'bg-red-500' : 'bg-green-500'}>
+                        {person.status}
+                      </Badge>
+                      {person.verification_status === 'verified' && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-500">
+                          ✓ Verified
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 {person.photo_url && (
@@ -545,6 +637,24 @@ const PersonDetail = () => {
                           </a>
                         </div>
                       )}
+                      {person.emergency_contact_name && (
+                        <>
+                          <Separator className="my-2" />
+                          <p className="text-sm font-semibold text-muted-foreground">Emergency Contact</p>
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-muted-foreground" />
+                            <span>{person.emergency_contact_name} ({person.emergency_contact_relation})</span>
+                          </div>
+                          {person.emergency_contact_phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-muted-foreground" />
+                              <a href={`tel:${person.emergency_contact_phone}`} className="hover:underline">
+                                {person.emergency_contact_phone}
+                              </a>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </>
                   ) : (
                     <div className="p-4 bg-secondary/50 rounded-lg text-center space-y-2">
@@ -558,6 +668,33 @@ const PersonDetail = () => {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Resolution functionality for report owner */}
+              {user && person.user_id === user.id && !person.is_resolved && (
+                <Card className="border-primary">
+                  <CardHeader>
+                    <CardTitle>Mark Case as Resolved</CardTitle>
+                    <CardDescription>
+                      If this person has been found, you can mark this case as resolved
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Textarea
+                      placeholder="Optional: Add notes about the resolution..."
+                      value={resolutionNotes}
+                      onChange={(e) => setResolutionNotes(e.target.value)}
+                      rows={3}
+                    />
+                    <Button 
+                      onClick={handleMarkAsResolved}
+                      disabled={isResolving}
+                      className="w-full"
+                    >
+                      {isResolving ? "Marking as Resolved..." : "Mark as Resolved"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader>
