@@ -5,8 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface SMSUpdateRequest {
-  phoneNumber: string;
+interface EmailUpdateRequest {
+  email: string;
   missingPersonName: string;
   updateMessage: string;
 }
@@ -17,51 +17,55 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { phoneNumber, missingPersonName, updateMessage }: SMSUpdateRequest = await req.json();
+    const { email, missingPersonName, updateMessage }: EmailUpdateRequest = await req.json();
+    
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
-    const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const twilioPhone = Deno.env.get("TWILIO_PHONE_NUMBER");
-
-    if (!accountSid || !authToken || !twilioPhone) {
-      throw new Error("Twilio credentials not configured");
+    if (!resendApiKey) {
+      throw new Error("RESEND_API_KEY not configured");
     }
 
-    console.log("Sending SMS to:", phoneNumber);
+    console.log("Sending email update for:", missingPersonName);
 
-    const smsBody = `Missing Person Update - ${missingPersonName}: ${updateMessage}`;
+    const emailResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: "ReUn Updates <onboarding@resend.dev>",
+        to: [email],
+        subject: `Update on ${missingPersonName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333;">Missing Person Update</h1>
+            <p><strong>${missingPersonName}</strong></p>
+            <p>${updateMessage}</p>
+            <p>Please check the ReUn platform for more details or contact the authorities if you have any information.</p>
+            <p style="color: #666; font-size: 12px; margin-top: 20px;">
+              This is an automated update from the ReUn Missing Persons Platform.
+            </p>
+          </div>
+        `,
+      }),
+    });
 
-    const response = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Authorization": "Basic " + btoa(`${accountSid}:${authToken}`),
-        },
-        body: new URLSearchParams({
-          To: phoneNumber,
-          From: twilioPhone,
-          Body: smsBody,
-        }),
-      }
-    );
+    const data = await emailResponse.json();
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Twilio error:", data);
-      throw new Error(data.message || "Failed to send SMS");
+    if (!emailResponse.ok) {
+      console.error("Resend API error:", data);
+      throw new Error(data.message || "Failed to send email");
     }
 
-    console.log("SMS sent successfully:", data.sid);
+    console.log("Email sent successfully:", data);
 
-    return new Response(JSON.stringify({ success: true, messageSid: data.sid }), {
+    return new Response(JSON.stringify(data), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error in send-sms-update:", error);
+    console.error("Error in send-email-update:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }

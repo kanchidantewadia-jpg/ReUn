@@ -290,9 +290,9 @@ export type Database = {
           code: string
           consumed: boolean
           created_at: string
+          email: string
           expires_at: string
           id: string
-          phone: string
           purpose: string
         }
         Insert: {
@@ -300,9 +300,9 @@ export type Database = {
           code: string
           consumed?: boolean
           created_at?: string
+          email: string
           expires_at: string
           id?: string
-          phone: string
           purpose?: string
         }
         Update: {
@@ -310,9 +310,9 @@ export type Database = {
           code?: string
           consumed?: boolean
           created_at?: string
+          email?: string
           expires_at?: string
           id?: string
-          phone?: string
           purpose?: string
         }
         Relationships: []

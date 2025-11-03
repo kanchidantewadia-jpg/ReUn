@@ -1,5 +1,5 @@
 // Deno Edge Function: send-otp
-// Sends and verifies OTP codes using Twilio and stores codes in the database
+// Sends and verifies OTP codes using email (Resend) and stores codes in the database
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.1";
@@ -12,10 +12,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
-const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
-const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -36,31 +33,40 @@ function errorResponse(message: string, status: number = 500) {
   return jsonResponse({ error: message }, { status });
 }
 
-function isE164(phone: string) {
-  return /^\+[1-9]\d{7,14}$/.test(phone);
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-async function sendTwilioSMS(to: string, message: string) {
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
-    throw new Error("Twilio is not configured");
+async function sendOTPEmail(to: string, code: string) {
+  if (!RESEND_API_KEY) {
+    throw new Error("Email service is not configured");
   }
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-  const body = new URLSearchParams({
-    To: to,
-    From: TWILIO_PHONE_NUMBER,
-    Body: message,
-  });
-  const resp = await fetch(url, {
+  
+  const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      "Authorization": "Basic " + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
     },
-    body,
+    body: JSON.stringify({
+      from: "ReUn Verification <onboarding@resend.dev>",
+      to: [to],
+      subject: "Your ReUn Verification Code",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #333;">Verification Code</h1>
+          <p>Your ReUn verification code is:</p>
+          <h2 style="color: #007bff; font-size: 32px; letter-spacing: 8px;">${code}</h2>
+          <p>This code will expire in 10 minutes.</p>
+          <p style="color: #666; font-size: 12px;">If you didn't request this code, please ignore this email.</p>
+        </div>
+      `,
+    }),
   });
+  
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`Twilio send failed: ${resp.status} ${text}`);
+    throw new Error(`Email send failed: ${resp.status}`);
   }
 }
 
@@ -70,13 +76,13 @@ serve(async (req) => {
   }
 
   try {
-    const { action, phone, code, purpose } = await req.json();
+    const { action, email, code, purpose } = await req.json();
 
     if (!action) return badRequest("Missing action");
-    if (!phone || typeof phone !== "string") return badRequest("Missing phone");
+    if (!email || typeof email !== "string") return badRequest("Missing email");
 
-    const normalizedPhone = phone.trim();
-    if (!isE164(normalizedPhone)) return badRequest("Phone must be in E.164 format, e.g. +1234567890");
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) return badRequest("Invalid email format");
 
     const usePurpose = typeof purpose === "string" && purpose.length > 0 ? purpose : "signup";
 
@@ -90,7 +96,7 @@ serve(async (req) => {
       const { data: recentMinute, error: recentError } = await supabase
         .from("otp_codes")
         .select("id")
-        .eq("phone", normalizedPhone)
+        .eq("email", normalizedEmail)
         .gte("created_at", oneMinuteAgo)
         .limit(1);
       
@@ -104,7 +110,7 @@ serve(async (req) => {
       const { data: recentHour } = await supabase
         .from("otp_codes")
         .select("id")
-        .eq("phone", normalizedPhone)
+        .eq("email", normalizedEmail)
         .gte("created_at", oneHourAgo);
       
       if (recentHour && recentHour.length >= 3) {
@@ -115,7 +121,7 @@ serve(async (req) => {
       const { data: recentDay } = await supabase
         .from("otp_codes")
         .select("id")
-        .eq("phone", normalizedPhone)
+        .eq("email", normalizedEmail)
         .gte("created_at", oneDayAgo);
       
       if (recentDay && recentDay.length >= 10) {
@@ -132,15 +138,14 @@ serve(async (req) => {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
       const { error: insertError } = await supabase.from("otp_codes").insert({
-        phone: normalizedPhone,
+        email: normalizedEmail,
         code: newCode,
         purpose: usePurpose,
         expires_at: expiresAt,
       });
       if (insertError) throw insertError;
 
-      const message = `Your ReUn verification code is ${newCode}. It expires in 10 minutes.`;
-      await sendTwilioSMS(normalizedPhone, message);
+      await sendOTPEmail(normalizedEmail, newCode);
 
       return jsonResponse({ ok: true, message: "OTP sent" });
     }
@@ -152,7 +157,7 @@ serve(async (req) => {
       const { data: records, error: fetchError } = await supabase
         .from("otp_codes")
         .select("id, code, attempts, expires_at, consumed")
-        .eq("phone", normalizedPhone)
+        .eq("email", normalizedEmail)
         .eq("purpose", usePurpose)
         .lte("created_at", nowIso)
         .order("created_at", { ascending: false })

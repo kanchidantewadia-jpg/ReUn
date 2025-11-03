@@ -132,12 +132,12 @@ const Admin = () => {
 
       if (error) throw error;
 
-      // Fetch the report details to send SMS
+      // Fetch the report details to send email update
       const report = reports.find((r) => r.id === reportId);
-      if (report && report.contact_phone) {
+      if (report && report.contact_email) {
         await supabase.functions.invoke("send-sms-update", {
           body: {
-            phoneNumber: report.contact_phone,
+            email: report.contact_email,
             missingPersonName: report.full_name,
             updateMessage: `Status updated to: ${newStatus}`,
           },
