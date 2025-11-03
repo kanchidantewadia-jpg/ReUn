@@ -17,6 +17,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Verify authentication (JWT verification handled by Supabase)
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { email, missingPersonName, updateMessage }: EmailUpdateRequest = await req.json();
     
     const resendApiKey = Deno.env.get("RESEND_API_KEY");

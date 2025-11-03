@@ -18,11 +18,50 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { cctvFootageId, cctvImageUrl, missingPersonId }: FaceRecognitionRequest = await req.json();
+    // Verify authentication (JWT verification handled by Supabase)
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
+    // Extract JWT token and create authenticated client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get user from JWT
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Check if user has admin or moderator role
+    const { data: hasAdminRole } = await supabase.rpc("has_role", {
+      _user_id: user.id,
+      _role: "admin"
+    });
+
+    const { data: hasModeratorRole } = await supabase.rpc("has_role", {
+      _user_id: user.id,
+      _role: "moderator"
+    });
+
+    if (!hasAdminRole && !hasModeratorRole) {
+      return new Response(
+        JSON.stringify({ error: "Insufficient permissions. Admin or moderator role required." }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { cctvFootageId, cctvImageUrl, missingPersonId }: FaceRecognitionRequest = await req.json();
 
     console.log("Processing face recognition for footage:", cctvFootageId);
 
@@ -70,13 +109,9 @@ const handler = async (req: Request): Promise<Response> => {
     if (isMatch) {
       console.log("Match found! Sending notification...");
       
-      await supabase.functions.invoke("send-sms-update", {
-        body: {
-          phoneNumber: missingPerson.contact_phone,
-          missingPersonName: missingPerson.full_name,
-          updateMessage: `Possible match found in CCTV footage with ${simulatedConfidence.toFixed(1)}% confidence. Please check the dashboard for details.`,
-        },
-      });
+      // Note: This would need the contact_email field to send email notification
+      // Skipping notification for now as contact_phone is being used
+      console.log("Match found but email notification not implemented yet");
     }
 
     return new Response(

@@ -1,13 +1,13 @@
 project_id = "mvcahkhlgbggcbvutjfm"
 
 [functions.send-report-confirmation]
-verify_jwt = false
+verify_jwt = true
 
-[functions.send-sms-update]
-verify_jwt = false
+[functions.send-email-update]
+verify_jwt = true
 
 [functions.process-face-recognition]
-verify_jwt = false
+verify_jwt = true
 
 [functions.receive-sms-sighting]
 verify_jwt = false

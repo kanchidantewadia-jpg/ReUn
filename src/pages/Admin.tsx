@@ -135,7 +135,7 @@ const Admin = () => {
       // Fetch the report details to send email update
       const report = reports.find((r) => r.id === reportId);
       if (report && report.contact_email) {
-        await supabase.functions.invoke("send-sms-update", {
+        await supabase.functions.invoke("send-email-update", {
           body: {
             email: report.contact_email,
             missingPersonName: report.full_name,
