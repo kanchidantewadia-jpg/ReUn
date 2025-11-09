@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { User, FileText, Video, TrendingUp, AlertCircle } from "lucide-react";
+import { User, FileText, Video, TrendingUp, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -146,7 +146,7 @@ const Admin = () => {
 
       toast({
         title: "Status Updated",
-        description: `Report status changed to ${newStatus}. SMS notification sent.`,
+        description: `Report status changed to ${newStatus}. Email notification sent.`,
       });
 
       await fetchAdminData();
@@ -155,6 +155,38 @@ const Admin = () => {
       toast({
         title: "Error",
         description: "Failed to update status.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleVerifyReport = async (reportId: string, action: "verified" | "rejected") => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from("missing_persons")
+        .update({
+          verification_status: action,
+          verified_by: user?.id,
+          verified_at: new Date().toISOString(),
+          verification_notes: action === "verified" ? "Report verified by admin" : "Report rejected by admin"
+        })
+        .eq("id", reportId);
+
+      if (error) throw error;
+
+      toast({
+        title: action === "verified" ? "Report Verified" : "Report Rejected",
+        description: `The report has been ${action} successfully.`,
+      });
+
+      await fetchAdminData();
+    } catch (error: any) {
+      console.error("Error verifying report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to verify report.",
         variant: "destructive",
       });
     }
@@ -243,6 +275,7 @@ const Admin = () => {
                         <TableHead>Age</TableHead>
                         <TableHead>Last Seen</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Verification</TableHead>
                         <TableHead>Contact</TableHead>
                         <TableHead>Filed Date</TableHead>
                         <TableHead>Actions</TableHead>
@@ -274,6 +307,24 @@ const Admin = () => {
                             >
                               {report.status}
                             </Badge>
+                            {report.is_minor && (
+                              <Badge variant="destructive" className="ml-2">
+                                CHILD
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                report.verification_status === "verified"
+                                  ? "default"
+                                  : report.verification_status === "rejected"
+                                  ? "destructive"
+                                  : "outline"
+                              }
+                            >
+                              {report.verification_status || "pending"}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
@@ -285,7 +336,29 @@ const Admin = () => {
                             {new Date(report.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
+                              {report.verification_status === "pending" && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleVerifyReport(report.id, "verified")}
+                                    className="text-green-600"
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Verify
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleVerifyReport(report.id, "rejected")}
+                                    className="text-red-600"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
                               {report.status === "missing" && (
                                 <Button
                                   size="sm"
