@@ -519,6 +519,10 @@ export type Database = {
       }
     }
     Functions: {
+      can_view_contact_info: {
+        Args: { _report_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_display_name: { Args: { user_uuid: string }; Returns: string }
       has_role: {
         Args: {

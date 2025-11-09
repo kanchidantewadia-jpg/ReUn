@@ -11,19 +11,18 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Calendar, User, Phone, Mail, Upload, Video, Eye, AlertCircle } from "lucide-react";
+import { MapPin, Calendar, User, Phone, Mail, Upload, Video, Eye, AlertCircle, Lock } from "lucide-react";
 import { SignedImage } from "@/components/SignedImage";
 import { messageSchema, cctvUploadSchema, validateFile } from "@/lib/validationSchemas";
 import DOMPurify from 'dompurify';
 import PredictiveMap from "@/components/PredictiveMap";
+import { MessageThread } from "@/components/MessageThread";
 
 const PersonDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [person, setPerson] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [cctvFile, setCctvFile] = useState<File | null>(null);
@@ -33,16 +32,47 @@ const PersonDetail = () => {
   const [sightings, setSightings] = useState<any[]>([]);
   const [isResolving, setIsResolving] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState("");
+  const [canViewContactInfo, setCanViewContactInfo] = useState(false);
 
   useEffect(() => {
     fetchPersonDetails();
     checkUser();
-    setupRealtimeSubscription();
   }, [id]);
+
+  useEffect(() => {
+    if (user && person) {
+      checkContactPermissions();
+    }
+  }, [user, person]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
+  };
+
+  const checkContactPermissions = async () => {
+    if (!user || !person?.id) {
+      setCanViewContactInfo(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('can_view_contact_info', {
+        _user_id: user.id,
+        _report_id: person.id
+      });
+
+      if (error) {
+        console.error('Error checking contact permissions:', error);
+        setCanViewContactInfo(false);
+        return;
+      }
+
+      setCanViewContactInfo(data || false);
+    } catch (error) {
+      console.error('Error checking contact permissions:', error);
+      setCanViewContactInfo(false);
+    }
   };
 
   const fetchPersonDetails = async () => {
@@ -55,31 +85,6 @@ const PersonDetail = () => {
 
       if (personError) throw personError;
       setPerson(personData);
-
-      // Fetch messages with display names using RPC function
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
-        .select('id, message, created_at, sender_id')
-        .eq('missing_person_id', id)
-        .order('created_at', { ascending: true });
-
-      if (messagesError) throw messagesError;
-      
-      // Fetch display names for each message
-      if (messagesData) {
-        const messagesWithNames = await Promise.all(
-          messagesData.map(async (msg) => {
-            const { data: displayName } = await supabase.rpc('get_display_name', {
-              user_uuid: msg.sender_id
-            });
-            return {
-              ...msg,
-              sender_name: displayName || 'Anonymous User'
-            };
-          })
-        );
-        setMessages(messagesWithNames);
-      }
 
       // Fetch community sightings
       const { data: sightingsData, error: sightingsError } = await supabase
@@ -99,105 +104,6 @@ const PersonDetail = () => {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const setupRealtimeSubscription = () => {
-    const channel = supabase
-      .channel('messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `missing_person_id=eq.${id}`,
-        },
-        async (payload) => {
-          const newMessage = payload.new as any;
-          // Fetch display name for new message
-          const { data: displayName } = await supabase.rpc('get_display_name', {
-            user_uuid: newMessage.sender_id
-          });
-          setMessages((current) => [
-            ...current,
-            { ...newMessage, sender_name: displayName || 'Anonymous User' }
-          ]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Check user authentication first
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to send messages.",
-        variant: "destructive",
-      });
-      navigate('/auth');
-      return;
-    }
-    
-    if (!newMessage.trim()) return;
-
-    try {
-      // Validate message (no sender_name needed)
-      const validationResult = messageSchema.safeParse({
-        message: newMessage,
-      });
-
-      if (!validationResult.success) {
-        toast({
-          title: "Validation Error",
-          description: validationResult.error.errors[0].message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          missing_person_id: id,
-          sender_id: user.id,
-          message: validationResult.data.message,
-        });
-
-      if (error) {
-        console.error('Error sending message:', error);
-        
-        // Check for auth-specific errors
-        if (error.code === 'PGRST301' || error.message.includes('row-level security')) {
-          toast({
-            title: "Authentication Required",
-            description: "Your session may have expired. Please sign in again.",
-            variant: "destructive",
-          });
-          navigate('/auth');
-        } else {
-          toast({
-            title: "Error",
-            description: "Failed to send message. Please try again.",
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-      setNewMessage("");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to send message.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -617,7 +523,7 @@ const PersonDetail = () => {
                   <CardTitle>Contact Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {user ? (
+                  {user && canViewContactInfo ? (
                     <>
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-muted-foreground" />
@@ -656,6 +562,16 @@ const PersonDetail = () => {
                         </>
                       )}
                     </>
+                  ) : user ? (
+                    <div className="p-4 bg-secondary/50 rounded-lg text-center space-y-2">
+                      <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Contact information is restricted. Only the report owner, admins, and moderators can view these details.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Use the internal messaging system below to communicate securely.
+                      </p>
+                    </div>
                   ) : (
                     <div className="p-4 bg-secondary/50 rounded-lg text-center space-y-2">
                       <p className="text-sm text-muted-foreground">
@@ -696,60 +612,8 @@ const PersonDetail = () => {
                 </Card>
               )}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Messages & Updates</CardTitle>
-                  <CardDescription>
-                    Community discussion about this case
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="max-h-96 overflow-y-auto space-y-3">
-                      {messages.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No messages yet. Be the first to share information.
-                        </p>
-                      ) : (
-                        messages.map((msg) => (
-                          <div key={msg.id} className="bg-secondary/50 rounded-lg p-3">
-                            <p className="font-semibold text-sm">{msg.sender_name}</p>
-                            <p className="text-sm mt-1 whitespace-pre-wrap break-words">
-                              {DOMPurify.sanitize(msg.message, { ALLOWED_TAGS: [] })}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(msg.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {user ? (
-                      <form onSubmit={handleSendMessage} className="space-y-2">
-                        <Textarea
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          placeholder="Share any information you have..."
-                          rows={3}
-                        />
-                        <Button type="submit" className="w-full">
-                          Send Message
-                        </Button>
-                      </form>
-                    ) : (
-                      <div className="text-center py-4">
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Sign in to send messages
-                        </p>
-                        <Button onClick={() => navigate('/auth')}>
-                          Sign In
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Internal Messaging System */}
+              <MessageThread missingPersonId={id!} user={user} />
             </div>
           </div>
         </div>
