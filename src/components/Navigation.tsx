@@ -4,6 +4,7 @@ import { Menu, X, Users, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { Notifications } from "@/components/Notifications";
 
 const Navigation = () => {
   const location = useLocation();
@@ -91,6 +92,7 @@ const Navigation = () => {
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
+                <Notifications user={user} />
                 <span className="text-sm font-medium text-foreground">
                   Welcome, <span className="text-primary">{userName || "User"}</span>
                 </span>
@@ -142,8 +144,11 @@ const Navigation = () => {
               <div className="flex flex-col gap-2 mt-4 px-4">
                 {user ? (
                   <>
-                    <div className="px-4 py-2 text-sm">
-                      Welcome, <span className="text-primary font-medium">{userName || "User"}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Notifications user={user} />
+                      <span className="text-sm flex-1">
+                        Welcome, <span className="text-primary font-medium">{userName || "User"}</span>
+                      </span>
                     </div>
                     <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
                       <LogOut className="w-4 h-4 mr-2" />

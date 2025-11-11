@@ -317,6 +317,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message_id: string
+          message_preview: string
+          missing_person_id: string
+          sender_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_id: string
+          message_preview: string
+          missing_person_id: string
+          sender_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_id?: string
+          message_preview?: string
+          missing_person_id?: string
+          sender_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           attempts: number
