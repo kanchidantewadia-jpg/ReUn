@@ -13,6 +13,8 @@ import Help from "./pages/Help";
 import Feedback from "./pages/Feedback";
 import Admin from "./pages/Admin";
 import DroneMap from "./pages/DroneMap";
+import MapSearch from "./pages/MapSearch";
+import Settings from "./pages/Settings";
 import Terms from "./pages/Terms";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
@@ -36,6 +38,8 @@ const App = () => (
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/drone-map" element={<DroneMap />} />
+          <Route path="/map-search" element={<MapSearch />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

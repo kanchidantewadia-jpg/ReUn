@@ -236,6 +236,8 @@ export type Database = {
           is_resolved: boolean | null
           last_seen_date: string
           last_seen_location: string
+          latitude: number | null
+          longitude: number | null
           photo_url: string | null
           resolution_notes: string | null
           resolved_at: string | null
@@ -269,6 +271,8 @@ export type Database = {
           is_resolved?: boolean | null
           last_seen_date: string
           last_seen_location: string
+          latitude?: number | null
+          longitude?: number | null
           photo_url?: string | null
           resolution_notes?: string | null
           resolved_at?: string | null
@@ -302,6 +306,8 @@ export type Database = {
           is_resolved?: boolean | null
           last_seen_date?: string
           last_seen_location?: string
+          latitude?: number | null
+          longitude?: number | null
           photo_url?: string | null
           resolution_notes?: string | null
           resolved_at?: string | null
@@ -391,6 +397,7 @@ export type Database = {
           full_name: string
           id: string
           phone_number: string | null
+          privacy_settings: Json | null
           show_real_name: boolean | null
           sms_notifications: boolean | null
           updated_at: string
@@ -403,6 +410,7 @@ export type Database = {
           full_name: string
           id?: string
           phone_number?: string | null
+          privacy_settings?: Json | null
           show_real_name?: boolean | null
           sms_notifications?: boolean | null
           updated_at?: string
@@ -415,6 +423,7 @@ export type Database = {
           full_name?: string
           id?: string
           phone_number?: string | null
+          privacy_settings?: Json | null
           show_real_name?: boolean | null
           sms_notifications?: boolean | null
           updated_at?: string

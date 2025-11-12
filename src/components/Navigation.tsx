@@ -54,6 +54,7 @@ const Navigation = () => {
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Search", path: "/search" },
+    { name: "Map Search", path: "/map-search" },
     { name: "Report Missing", path: "/report" },
     { name: "Drone Map", path: "/drone-map" },
     { name: "About", path: "/about" },
@@ -93,6 +94,9 @@ const Navigation = () => {
             {user ? (
               <>
                 <Notifications user={user} />
+                <Link to="/settings">
+                  <Button variant="ghost" size="sm">Settings</Button>
+                </Link>
                 <span className="text-sm font-medium text-foreground">
                   Welcome, <span className="text-primary">{userName || "User"}</span>
                 </span>
@@ -150,6 +154,9 @@ const Navigation = () => {
                         Welcome, <span className="text-primary font-medium">{userName || "User"}</span>
                       </span>
                     </div>
+                    <Link to="/settings" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start">Settings</Button>
+                    </Link>
                     <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out
