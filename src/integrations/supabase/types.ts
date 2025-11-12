@@ -390,6 +390,7 @@ export type Database = {
           email_notifications: boolean | null
           full_name: string
           id: string
+          phone_number: string | null
           show_real_name: boolean | null
           sms_notifications: boolean | null
           updated_at: string
@@ -401,6 +402,7 @@ export type Database = {
           email_notifications?: boolean | null
           full_name: string
           id?: string
+          phone_number?: string | null
           show_real_name?: boolean | null
           sms_notifications?: boolean | null
           updated_at?: string
@@ -412,6 +414,7 @@ export type Database = {
           email_notifications?: boolean | null
           full_name?: string
           id?: string
+          phone_number?: string | null
           show_real_name?: boolean | null
           sms_notifications?: boolean | null
           updated_at?: string
