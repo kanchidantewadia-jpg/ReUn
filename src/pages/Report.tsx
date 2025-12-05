@@ -10,20 +10,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, AlertCircle } from "lucide-react";
+import { Upload, AlertCircle, MapPin, Loader2 } from "lucide-react";
 import { reportSchema, validateFile } from "@/lib/validationSchemas";
+import { geocodeAddress } from "@/lib/geocoding";
 
 const Report = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [gender, setGender] = useState<string>("");
+  const [geocodedLocation, setGeocodedLocation] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         toast({
@@ -40,7 +42,7 @@ const Report = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
@@ -55,6 +57,19 @@ const Report = () => {
         setPhotoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLocationBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const location = e.target.value.trim();
+    if (location.length > 3) {
+      setIsGeocoding(true);
+      setGeocodedLocation(null);
+      const result = await geocodeAddress(location);
+      if (result) {
+        setGeocodedLocation(`📍 ${result.displayName}`);
+      }
+      setIsGeocoding(false);
     }
   };
 
@@ -74,15 +89,25 @@ const Report = () => {
       }
 
       const formData = new FormData(e.currentTarget);
+      const lastLocation = formData.get('lastLocation') as string;
       
-      // Validate form data
+      // Geocode the address
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+      
+      const geoResult = await geocodeAddress(lastLocation);
+      if (geoResult) {
+        latitude = geoResult.latitude;
+        longitude = geoResult.longitude;
+      }
+
       const formObject = {
         full_name: formData.get('fullName') as string,
         age: formData.get('age') ? parseInt(formData.get('age') as string) : undefined,
         gender: gender || undefined,
         height: formData.get('height') as string || undefined,
         weight: formData.get('weight') as string || undefined,
-        last_seen_location: formData.get('lastLocation') as string,
+        last_seen_location: lastLocation,
         last_seen_date: formData.get('lastSeen') as string,
         clothing_description: formData.get('clothing') as string || undefined,
         distinguishing_features: formData.get('distinguishing') as string || undefined,
@@ -104,7 +129,6 @@ const Report = () => {
         return;
       }
       
-      // Validate photo if provided
       if (photoFile) {
         try {
           validateFile(photoFile, 10 * 1024 * 1024, ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']);
@@ -120,7 +144,6 @@ const Report = () => {
 
       let photoUrl = null;
 
-      // Upload photo if provided
       if (photoFile) {
         const fileExt = photoFile.name.split('.').pop();
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
@@ -129,12 +152,9 @@ const Report = () => {
           .upload(fileName, photoFile);
 
         if (uploadError) throw uploadError;
-        
-        // Store the file path instead of public URL (buckets are now private)
         photoUrl = fileName;
       }
 
-      // Insert report into database with validated data and default public visibility
       const { data: reportData, error: insertError } = await supabase
         .from('missing_persons')
         .insert({
@@ -153,18 +173,19 @@ const Report = () => {
           contact_phone: validationResult.data.contact_phone,
           contact_email: validationResult.data.contact_email || null,
           photo_url: photoUrl,
-          visibility: 'public', // Default to public for community awareness
+          visibility: 'public',
           is_minor: formData.get('isMinor') === 'on',
           emergency_contact_name: formData.get('emergencyName') as string || null,
           emergency_contact_phone: formData.get('emergencyPhone') as string || null,
           emergency_contact_relation: formData.get('emergencyRelation') as string || null,
+          latitude,
+          longitude,
         })
         .select()
         .single();
 
       if (insertError) throw insertError;
 
-      // Send confirmation email
       if (reportData && validationResult.data.contact_email) {
         try {
           await supabase.functions.invoke("send-report-confirmation", {
@@ -177,16 +198,17 @@ const Report = () => {
           });
         } catch (emailError) {
           console.error("Failed to send confirmation email:", emailError);
-          // Don't block the submission if email fails
         }
       }
 
       toast({
         title: "Report Submitted",
-        description: "Your report has been successfully submitted. Check your email for confirmation.",
+        description: latitude && longitude 
+          ? "Your report has been submitted and will appear on the map."
+          : "Your report has been submitted successfully.",
       });
       
-      navigate('/search');
+      navigate('/dashboard');
     } catch (error: any) {
       toast({
         title: "Error",
@@ -199,58 +221,54 @@ const Report = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-muted/30">
       <Navigation />
       
-      <div className="flex-1 py-24 px-4 bg-gradient-to-br from-primary/5 to-accent/5">
-        <div className="container mx-auto max-w-3xl">
+      <main className="flex-1 pt-24 pb-16 px-4">
+        <div className="container mx-auto max-w-2xl">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-4">Report a Missing Person</h1>
-            <p className="text-xl text-muted-foreground">
-              Provide as much information as possible to help us locate your loved one
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">Report a Missing Person</h1>
+            <p className="text-muted-foreground">
+              Provide details to help locate your loved one
             </p>
           </div>
 
-          <Card className="shadow-xl">
-            <CardHeader>
-              <CardTitle>Missing Person Information</CardTitle>
-              <CardDescription>All fields are important for the search process</CardDescription>
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl">Missing Person Information</CardTitle>
+              <CardDescription>Fields marked with * are required</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Photo Upload */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Upload className="w-5 h-5 text-primary" />
-                    Photo of Missing Person
-                  </h3>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="photo">Upload Photo *</Label>
-                    <Input 
-                      id="photo" 
-                      name="photo" 
-                      type="file" 
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="cursor-pointer"
-                    />
-                    {photoPreview && (
-                      <div className="mt-4 relative w-full h-64 rounded-lg overflow-hidden border">
-                        <img 
-                          src={photoPreview} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                  </div>
+                <div className="space-y-3">
+                  <Label className="text-base font-medium flex items-center gap-2">
+                    <Upload className="w-4 h-4 text-primary" />
+                    Photo
+                  </Label>
+                  <Input 
+                    id="photo" 
+                    name="photo" 
+                    type="file" 
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="cursor-pointer"
+                  />
+                  {photoPreview && (
+                    <div className="w-full h-48 rounded-lg overflow-hidden border bg-muted">
+                      <img 
+                        src={photoPreview} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {/* Personal Information */}
+                {/* Personal Details */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-primary" />
+                  <h3 className="text-base font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-primary" />
                     Personal Details
                   </h3>
                   
@@ -281,7 +299,7 @@ const Report = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="height">Height</Label>
-                      <Input id="height" name="height" placeholder="e.g., 5 feet 8 inches or 173cm" />
+                      <Input id="height" name="height" placeholder="e.g., 5'8&quot; or 173cm" />
                     </div>
                   </div>
 
@@ -290,7 +308,7 @@ const Report = () => {
                     <Input id="weight" name="weight" placeholder="e.g., 150 lbs or 68 kg" />
                   </div>
                   
-                  <div className="flex items-center space-x-2 pt-2">
+                  <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       id="isMinor"
@@ -298,18 +316,38 @@ const Report = () => {
                       className="h-4 w-4 rounded border-input"
                     />
                     <Label htmlFor="isMinor" className="text-sm font-normal cursor-pointer">
-                      This person is under 18 years old (additional verification required)
+                      This person is under 18 years old
                     </Label>
                   </div>
                 </div>
 
                 {/* Last Known Location */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Last Known Information</h3>
+                  <h3 className="text-base font-medium flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    Last Known Information
+                  </h3>
                   
                   <div className="space-y-2">
                     <Label htmlFor="lastLocation">Last Known Location *</Label>
-                    <Input id="lastLocation" name="lastLocation" placeholder="City, area, or landmark" required />
+                    <div className="relative">
+                      <Input 
+                        id="lastLocation" 
+                        name="lastLocation" 
+                        placeholder="City, area, or address" 
+                        required 
+                        onBlur={handleLocationBlur}
+                      />
+                      {isGeocoding && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {geocodedLocation && (
+                      <p className="text-xs text-green-600">{geocodedLocation}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Location will be automatically mapped for search visibility
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -322,33 +360,33 @@ const Report = () => {
                     <Textarea 
                       id="clothing"
                       name="clothing"
-                      placeholder="Describe what they were wearing when last seen"
-                      rows={3}
+                      placeholder="What they were wearing when last seen"
+                      rows={2}
                     />
                   </div>
                 </div>
 
                 {/* Additional Information */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Additional Information</h3>
+                  <h3 className="text-base font-medium">Additional Information</h3>
                   
                   <div className="space-y-2">
                     <Label htmlFor="distinguishing">Distinguishing Features</Label>
                     <Textarea 
                       id="distinguishing"
                       name="distinguishing"
-                      placeholder="Scars, tattoos, birthmarks, or other identifying features"
-                      rows={3}
+                      placeholder="Scars, tattoos, birthmarks..."
+                      rows={2}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="circumstances">Circumstances of Disappearance *</Label>
+                    <Label htmlFor="circumstances">Circumstances *</Label>
                     <Textarea 
                       id="circumstances"
                       name="circumstances"
-                      placeholder="Describe the circumstances surrounding their disappearance"
-                      rows={4}
+                      placeholder="Describe the circumstances of disappearance"
+                      rows={3}
                       required
                     />
                   </div>
@@ -356,7 +394,7 @@ const Report = () => {
 
                 {/* Contact Information */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Your Contact Information</h3>
+                  <h3 className="text-base font-medium">Your Contact Information</h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -365,53 +403,52 @@ const Report = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number *</Label>
-                      <Input id="phone" name="phone" type="tel" placeholder="Your phone number" required />
+                      <Input id="phone" name="phone" type="tel" placeholder="+1234567890" required />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address *</Label>
-                    <Input id="email" name="email" type="email" placeholder="Your email" required />
+                    <Input id="email" name="email" type="email" placeholder="your@email.com" required />
                   </div>
                 </div>
 
                 {/* Emergency Contact */}
-                <div className="space-y-4 pt-2 border-t">
-                  <h3 className="text-lg font-semibold">Emergency Contact (Optional but Recommended)</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Provide an additional contact person who can be reached if you're unavailable
-                  </p>
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="text-base font-medium">Emergency Contact (Optional)</h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="emergencyName">Emergency Contact Name</Label>
+                      <Label htmlFor="emergencyName">Name</Label>
                       <Input id="emergencyName" name="emergencyName" placeholder="Full name" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="emergencyPhone">Emergency Contact Phone</Label>
+                      <Label htmlFor="emergencyPhone">Phone</Label>
                       <Input id="emergencyPhone" name="emergencyPhone" type="tel" placeholder="Phone number" />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="emergencyRelation">Relationship to Missing Person</Label>
-                    <Input id="emergencyRelation" name="emergencyRelation" placeholder="e.g., Mother, Brother, Friend" />
+                    <Label htmlFor="emergencyRelation">Relationship</Label>
+                    <Input id="emergencyRelation" name="emergencyRelation" placeholder="e.g., Mother, Friend" />
                   </div>
                 </div>
 
-                <div className="pt-4">
-                  <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-                    {isSubmitting ? "Submitting Report..." : "Submit Report"}
-                  </Button>
-                  <p className="text-sm text-center text-muted-foreground mt-4">
-                    Your report will be processed immediately and shared with our network
-                  </p>
-                </div>
+                <Button type="submit" className="w-full h-12 text-base" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Report"
+                  )}
+                </Button>
               </form>
             </CardContent>
           </Card>
         </div>
-      </div>
+      </main>
 
       <Footer />
     </div>

@@ -54,12 +54,9 @@ const Navigation = () => {
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Search", path: "/search" },
-    { name: "Map Search", path: "/map-search" },
-    { name: "Report Missing", path: "/report" },
-    { name: "Drone Map", path: "/drone-map" },
+    { name: "Map", path: "/map-search" },
     { name: "About", path: "/about" },
     { name: "Help", path: "/help" },
-    { name: "Feedback", path: "/feedback" },
   ];
 
   return (
@@ -94,12 +91,15 @@ const Navigation = () => {
             {user ? (
               <>
                 <Notifications user={user} />
+                <Link to="/dashboard">
+                  <Button variant="ghost" size="sm">Dashboard</Button>
+                </Link>
+                <Link to="/report">
+                  <Button size="sm">Report</Button>
+                </Link>
                 <Link to="/settings">
                   <Button variant="ghost" size="sm">Settings</Button>
                 </Link>
-                <span className="text-sm font-medium text-foreground">
-                  Welcome, <span className="text-primary">{userName || "User"}</span>
-                </span>
                 <Button variant="ghost" size="sm" onClick={handleSignOut}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
@@ -150,10 +150,13 @@ const Navigation = () => {
                   <>
                     <div className="flex items-center gap-2 mb-2">
                       <Notifications user={user} />
-                      <span className="text-sm flex-1">
-                        Welcome, <span className="text-primary font-medium">{userName || "User"}</span>
-                      </span>
                     </div>
+                    <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start">Dashboard</Button>
+                    </Link>
+                    <Link to="/report" onClick={() => setIsOpen(false)}>
+                      <Button className="w-full justify-start">Report Missing</Button>
+                    </Link>
                     <Link to="/settings" onClick={() => setIsOpen(false)}>
                       <Button variant="ghost" className="w-full justify-start">Settings</Button>
                     </Link>
