@@ -167,18 +167,13 @@ const PersonDetail = () => {
 
       if (uploadError) throw uploadError;
 
-      // Store file path (buckets are now private, will use signed URLs)
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('cctv-footage')
-        .getPublicUrl(fileName);
-
+      // Store file path only (bucket is private, use signed URLs to display)
       const { data: cctvData, error: insertError } = await supabase
         .from('cctv_footage')
         .insert({
           missing_person_id: id,
           uploaded_by: user.id,
-          footage_url: publicUrl,
+          footage_url: fileName,
           location: validationResult.data.location || null,
           description: validationResult.data.description || null,
         })
@@ -206,16 +201,22 @@ const PersonDetail = () => {
         return;
       }
 
-      // Process face recognition
+      // Process face recognition - generate a signed URL for the AI to access
       if (cctvData) {
         try {
-          await supabase.functions.invoke("process-face-recognition", {
-            body: {
-              cctvFootageId: cctvData.id,
-              cctvImageUrl: publicUrl,
-              missingPersonId: id,
-            },
-          });
+          const { data: signedUrlData } = await supabase.storage
+            .from('cctv-footage')
+            .createSignedUrl(fileName, 3600); // 1 hour expiry
+          
+          if (signedUrlData?.signedUrl) {
+            await supabase.functions.invoke("process-face-recognition", {
+              body: {
+                cctvFootageId: cctvData.id,
+                cctvImageUrl: signedUrlData.signedUrl,
+                missingPersonId: id,
+              },
+            });
+          }
         } catch (faceError) {
           console.error("Face recognition processing error:", faceError);
           // Don't block the upload if face recognition fails

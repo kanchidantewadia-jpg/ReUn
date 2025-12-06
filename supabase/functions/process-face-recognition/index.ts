@@ -246,7 +246,7 @@ Respond with a JSON object containing:
   } catch (error: any) {
     console.error("Error in process-face-recognition:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Service temporarily unavailable" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
