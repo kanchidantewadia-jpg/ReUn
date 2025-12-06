@@ -75,6 +75,11 @@ const Report = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Capture form data immediately before any async operations
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    
     setIsSubmitting(true);
 
     try {
@@ -87,8 +92,6 @@ const Report = () => {
         });
         return;
       }
-
-      const formData = new FormData(e.currentTarget);
       const lastLocation = formData.get('lastLocation') as string;
       
       // Geocode the address
