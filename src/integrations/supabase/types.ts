@@ -508,6 +508,70 @@ export type Database = {
         }
         Relationships: []
       }
+      public_community_sightings: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          latitude: number | null
+          longitude: number | null
+          missing_person_id: string | null
+          sighting_date: string | null
+          sighting_description: string | null
+          sighting_location: string | null
+          sighting_photo_url: string | null
+          source: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          missing_person_id?: string | null
+          sighting_date?: string | null
+          sighting_description?: string | null
+          sighting_location?: string | null
+          sighting_photo_url?: string | null
+          source?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          missing_person_id?: string | null
+          sighting_date?: string | null
+          sighting_description?: string | null
+          sighting_location?: string | null
+          sighting_photo_url?: string | null
+          source?: string | null
+          verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_sightings_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "authenticated_missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_sightings_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_sightings_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "public_missing_persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       public_missing_persons: {
         Row: {
           additional_info: string | null

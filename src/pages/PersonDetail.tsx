@@ -86,9 +86,9 @@ const PersonDetail = () => {
       if (personError) throw personError;
       setPerson(personData);
 
-      // Fetch community sightings
+      // Fetch community sightings (public view without reporter contact info)
       const { data: sightingsData, error: sightingsError } = await supabase
-        .from('community_sightings')
+        .from('public_community_sightings' as any)
         .select('*')
         .eq('missing_person_id', id)
         .order('sighting_date', { ascending: false });
