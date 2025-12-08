@@ -53,15 +53,31 @@ export default function MapSearch() {
 
   const fetchMissingPersons = async () => {
     try {
-      const { data, error } = await supabase
-        .from("missing_persons")
-        .select("id, full_name, age, gender, last_seen_location, last_seen_date, status, photo_url, latitude, longitude")
-        .not("latitude", "is", null)
-        .not("longitude", "is", null)
-        .order("last_seen_date", { ascending: false });
+      // Use authenticated_missing_persons view which includes coordinates
+      // First check if user is authenticated for full access
+      const { data: session } = await supabase.auth.getSession();
+      
+      let query;
+      if (session?.session) {
+        // Authenticated users can see all approved reports with coordinates
+        query = supabase
+          .from("authenticated_missing_persons")
+          .select("id, full_name, age, gender, last_seen_location, last_seen_date, status, photo_url")
+          .order("last_seen_date", { ascending: false });
+      } else {
+        // Public view - limited data
+        query = supabase
+          .from("public_missing_persons")
+          .select("id, full_name, age, gender, last_seen_location, last_seen_date, status, photo_url")
+          .order("last_seen_date", { ascending: false });
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
-      setMissingPersons(data || []);
+      
+      // Note: public views don't include coordinates, so map markers won't show for unauthenticated users
+      setMissingPersons((data || []).map(p => ({ ...p, latitude: null, longitude: null })));
     } catch (error) {
       console.error("Error fetching missing persons:", error);
     } finally {
@@ -104,6 +120,8 @@ export default function MapSearch() {
     );
   }
 
+  const hasCoordinates = filteredPersons.some(p => p.latitude && p.longitude);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
@@ -142,6 +160,20 @@ export default function MapSearch() {
               <Badge variant="outline">{filteredPersons.length} cases shown</Badge>
             </div>
           </div>
+          
+          {!hasCoordinates && filteredPersons.length > 0 && (
+            <div className="bg-muted/50 border border-border rounded-lg p-4 mb-4">
+              <p className="text-sm text-muted-foreground">
+                📍 Location data is not available for public viewing. Sign in to see map markers for missing persons cases.
+              </p>
+            </div>
+          )}
+          
+          {filteredPersons.length === 0 && (
+            <div className="bg-muted/50 border border-border rounded-lg p-8 text-center mb-4">
+              <p className="text-muted-foreground">No missing persons cases found with the current filters.</p>
+            </div>
+          )}
         </div>
 
         <Card>
