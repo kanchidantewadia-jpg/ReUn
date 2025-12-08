@@ -90,11 +90,24 @@ const Search = () => {
 
           {isLoading ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="text-muted-foreground">Searching missing persons database...</p>
+              </div>
             </div>
           ) : filteredPersons.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No missing persons found matching your search.</p>
+              <div className="flex flex-col items-center gap-4">
+                <SearchIcon className="w-12 h-12 text-muted-foreground/50" />
+                <div>
+                  <p className="text-lg font-medium">No results found</p>
+                  <p className="text-muted-foreground">
+                    {searchQuery.trim() 
+                      ? `No missing persons found matching "${searchQuery}"`
+                      : "No missing persons reports are currently available"}
+                  </p>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
