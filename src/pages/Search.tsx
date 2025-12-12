@@ -3,17 +3,29 @@ import { Link } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { SignedImage } from "@/components/SignedImage";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Search as SearchIcon, MapPin, Calendar } from "lucide-react";
+import { Search as SearchIcon, MapPin, Calendar, Info } from "lucide-react";
+import { dummyMissingPersons } from "@/data/dummyMissingPersons";
+
+interface MissingPerson {
+  id: string;
+  full_name: string;
+  age: number | null;
+  gender: string | null;
+  last_seen_location: string;
+  last_seen_date: string;
+  status: string;
+  photo_url: string | null;
+  isDemo?: boolean;
+}
 
 const Search = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [missingPersons, setMissingPersons] = useState<any[]>([]);
-  const [filteredPersons, setFilteredPersons] = useState<any[]>([]);
+  const [missingPersons, setMissingPersons] = useState<MissingPerson[]>([]);
+  const [filteredPersons, setFilteredPersons] = useState<MissingPerson[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -40,10 +52,20 @@ const Search = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMissingPersons(data || []);
-      setFilteredPersons(data || []);
+      
+      // Combine real data with dummy data
+      const realPersons: MissingPerson[] = (data || []).map(p => ({ ...p, isDemo: false }));
+      const demoPersons: MissingPerson[] = dummyMissingPersons.map(p => ({ ...p, isDemo: true }));
+      
+      const combined = [...realPersons, ...demoPersons];
+      setMissingPersons(combined);
+      setFilteredPersons(combined);
     } catch (error) {
       console.error('Error fetching missing persons:', error);
+      // On error, still show dummy data
+      const demoPersons: MissingPerson[] = dummyMissingPersons.map(p => ({ ...p, isDemo: true }));
+      setMissingPersons(demoPersons);
+      setFilteredPersons(demoPersons);
     } finally {
       setIsLoading(false);
     }
@@ -110,46 +132,70 @@ const Search = () => {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPersons.map((person) => (
-                <Link key={person.id} to={`/person/${person.id}`}>
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                    {person.photo_url && (
-                      <div className="w-full h-48 overflow-hidden rounded-t-lg">
-                        <SignedImage
-                          bucket="missing-persons-photos"
-                          path={person.photo_url}
-                          alt={person.full_name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <CardTitle>{person.full_name}</CardTitle>
-                        <Badge className={getStatusColor(person.status)}>
-                          {person.status}
-                        </Badge>
-                      </div>
-                      <CardDescription>
-                        {person.age && `Age: ${person.age}`}
-                        {person.gender && ` • ${person.gender}`}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="w-4 h-4" />
-                        <span>{person.last_seen_location}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="w-4 h-4" />
-                        <span>{new Date(person.last_seen_date).toLocaleDateString()}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+            <>
+              {filteredPersons.some(p => p.isDemo) && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <Info className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                    Demo data shown for demonstration purposes. Report real missing persons to add to the database.
+                  </p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPersons.map((person) => (
+                  <Link key={person.id} to={person.isDemo ? "#" : `/person/${person.id}`}>
+                    <Card className={`hover:shadow-lg transition-shadow cursor-pointer h-full ${person.isDemo ? 'border-dashed border-blue-300 dark:border-blue-700' : ''}`}>
+                      {person.photo_url && !person.isDemo ? (
+                        <div className="w-full h-48 overflow-hidden rounded-t-lg">
+                          <SignedImage
+                            bucket="missing-persons-photos"
+                            path={person.photo_url}
+                            alt={person.full_name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-48 bg-gradient-to-br from-muted to-muted/50 rounded-t-lg flex items-center justify-center">
+                          <span className="text-4xl font-bold text-muted-foreground/30">
+                            {person.full_name.charAt(0)}
+                          </span>
+                        </div>
+                      )}
+                      <CardHeader>
+                        <div className="flex justify-between items-start gap-2">
+                          <CardTitle className="text-lg">{person.full_name}</CardTitle>
+                          <div className="flex gap-1 flex-shrink-0">
+                            {person.isDemo && (
+                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-600">
+                                Demo
+                              </Badge>
+                            )}
+                            <Badge className={getStatusColor(person.status)}>
+                              {person.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <CardDescription>
+                          {person.age && `Age: ${person.age}`}
+                          {person.gender && ` • ${person.gender}`}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{person.last_seen_location}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4 flex-shrink-0" />
+                          <span>{new Date(person.last_seen_date).toLocaleDateString()}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </main>
