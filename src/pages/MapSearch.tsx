@@ -9,7 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
+import { dummyMissingPersons } from "@/data/dummyMissingPersons";
 import "leaflet/dist/leaflet.css";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -34,6 +35,7 @@ interface MissingPerson {
   photo_url: string | null;
   latitude: number | null;
   longitude: number | null;
+  isDemo?: boolean;
 }
 
 export default function MapSearch() {
@@ -53,19 +55,15 @@ export default function MapSearch() {
 
   const fetchMissingPersons = async () => {
     try {
-      // Use authenticated_missing_persons view which includes coordinates
-      // First check if user is authenticated for full access
       const { data: session } = await supabase.auth.getSession();
       
       let query;
       if (session?.session) {
-        // Authenticated users can see all approved reports with coordinates
         query = supabase
           .from("authenticated_missing_persons")
-          .select("id, full_name, age, gender, last_seen_location, last_seen_date, status, photo_url")
+          .select("id, full_name, age, gender, last_seen_location, last_seen_date, status, photo_url, latitude, longitude")
           .order("last_seen_date", { ascending: false });
       } else {
-        // Public view - limited data
         query = supabase
           .from("public_missing_persons")
           .select("id, full_name, age, gender, last_seen_location, last_seen_date, status, photo_url")
@@ -76,10 +74,25 @@ export default function MapSearch() {
 
       if (error) throw error;
       
-      // Note: public views don't include coordinates, so map markers won't show for unauthenticated users
-      setMissingPersons((data || []).map(p => ({ ...p, latitude: null, longitude: null })));
+      // Combine real data with dummy data for demonstration
+      const realPersons: MissingPerson[] = (data || []).map(p => ({ 
+        ...p, 
+        latitude: p.latitude || null, 
+        longitude: p.longitude || null,
+        isDemo: false 
+      }));
+      
+      // Add dummy data with isDemo flag
+      const demoPersons: MissingPerson[] = dummyMissingPersons.map(p => ({ 
+        ...p, 
+        isDemo: true 
+      }));
+      
+      setMissingPersons([...realPersons, ...demoPersons]);
     } catch (error) {
       console.error("Error fetching missing persons:", error);
+      // On error, still show dummy data
+      setMissingPersons(dummyMissingPersons.map(p => ({ ...p, isDemo: true })));
     } finally {
       setLoading(false);
     }
@@ -120,8 +133,6 @@ export default function MapSearch() {
     );
   }
 
-  const hasCoordinates = filteredPersons.some(p => p.latitude && p.longitude);
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
@@ -161,10 +172,11 @@ export default function MapSearch() {
             </div>
           </div>
           
-          {!hasCoordinates && filteredPersons.length > 0 && (
-            <div className="bg-muted/50 border border-border rounded-lg p-4 mb-4">
-              <p className="text-sm text-muted-foreground">
-                📍 Location data is not available for public viewing. Sign in to see map markers for missing persons cases.
+          {filteredPersons.some(p => p.isDemo) && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4 flex items-center gap-2">
+              <Info className="h-4 w-4 text-blue-500" />
+              <p className="text-sm text-blue-600 dark:text-blue-400">
+                Demo data shown for demonstration. Report real cases to add to the database.
               </p>
             </div>
           )}

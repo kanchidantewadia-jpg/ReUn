@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import SimpleCaptcha from "@/components/SimpleCaptcha";
 import { Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -14,8 +15,13 @@ import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  const handleCaptchaVerify = useCallback((verified: boolean) => {
+    setCaptchaVerified(verified);
+  }, []);
 
   useEffect(() => {
     // Redirect if already logged in
@@ -57,6 +63,16 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!captchaVerified) {
+      toast({
+        title: "Verification required",
+        description: "Please complete the CAPTCHA verification.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     const formData = new FormData(e.currentTarget);
@@ -292,7 +308,13 @@ const Auth = () => {
                       minLength={6}
                     />
                   </div>
-                  <Button type="submit" className="w-full shadow-lg hover:shadow-xl transition-all" disabled={isLoading}>
+                  <SimpleCaptcha onVerify={handleCaptchaVerify} />
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full shadow-lg hover:shadow-xl transition-all" 
+                    disabled={isLoading || !captchaVerified}
+                  >
                     {isLoading ? "Creating account..." : "Sign Up"}
                   </Button>
                   <p className="text-xs text-center text-muted-foreground">

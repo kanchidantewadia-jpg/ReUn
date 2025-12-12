@@ -467,6 +467,8 @@ export type Database = {
           id: string | null
           last_seen_date: string | null
           last_seen_location: string | null
+          latitude: number | null
+          longitude: number | null
           photo_url: string | null
           status: Database["public"]["Enums"]["missing_status"] | null
           updated_at: string | null
@@ -484,6 +486,8 @@ export type Database = {
           id?: string | null
           last_seen_date?: string | null
           last_seen_location?: string | null
+          latitude?: number | null
+          longitude?: number | null
           photo_url?: string | null
           status?: Database["public"]["Enums"]["missing_status"] | null
           updated_at?: string | null
@@ -501,6 +505,8 @@ export type Database = {
           id?: string | null
           last_seen_date?: string | null
           last_seen_location?: string | null
+          latitude?: number | null
+          longitude?: number | null
           photo_url?: string | null
           status?: Database["public"]["Enums"]["missing_status"] | null
           updated_at?: string | null
