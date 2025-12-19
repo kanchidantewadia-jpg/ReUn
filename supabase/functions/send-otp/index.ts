@@ -37,7 +37,7 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-async function sendOTPEmail(to: string, code: string) {
+async function sendOTPEmail(to: string, code: string, purpose: string = "signup") {
   if (!RESEND_API_KEY) {
     throw new Error("Email service is not configured");
   }
@@ -51,8 +51,20 @@ async function sendOTPEmail(to: string, code: string) {
     body: JSON.stringify({
       from: "ReUn Verification <onboarding@resend.dev>",
       to: [to],
-      subject: "Your ReUn Verification Code",
-      html: `
+      subject: purpose === "password_reset" 
+        ? "Reset Your ReUn Password" 
+        : "Your ReUn Verification Code",
+      html: purpose === "password_reset" 
+        ? `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #333;">Password Reset</h1>
+          <p>You requested to reset your password. Use this code to continue:</p>
+          <h2 style="color: #007bff; font-size: 32px; letter-spacing: 8px;">${code}</h2>
+          <p>This code will expire in 10 minutes.</p>
+          <p style="color: #666; font-size: 12px;">If you didn't request a password reset, please ignore this email and your password will remain unchanged.</p>
+        </div>
+      `
+        : `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #333;">Verification Code</h1>
           <p>Your ReUn verification code is:</p>
@@ -145,7 +157,7 @@ serve(async (req) => {
       });
       if (insertError) throw insertError;
 
-      await sendOTPEmail(normalizedEmail, newCode);
+      await sendOTPEmail(normalizedEmail, newCode, usePurpose);
 
       return jsonResponse({ ok: true, message: "OTP sent" });
     }
