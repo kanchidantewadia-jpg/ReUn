@@ -646,6 +646,36 @@ export type Database = {
         }
         Returns: boolean
       }
+      search_missing_persons: {
+        Args: {
+          date_from?: string
+          date_to?: string
+          max_age?: number
+          min_age?: number
+          search_text?: string
+          status_filter?: string
+        }
+        Returns: {
+          additional_info: string
+          age: number
+          clothing_description: string
+          created_at: string
+          distinguishing_features: string
+          full_name: string
+          gender: string
+          height: string
+          id: string
+          last_seen_date: string
+          last_seen_location: string
+          photo_url: string
+          relevance: number
+          status: Database["public"]["Enums"]["missing_status"]
+          updated_at: string
+          weight: string
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
