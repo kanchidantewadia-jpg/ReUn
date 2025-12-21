@@ -674,6 +674,34 @@ export type Database = {
           weight: string
         }[]
       }
+      search_missing_persons_nearby: {
+        Args: {
+          radius_km?: number
+          status_filter?: string
+          user_lat: number
+          user_lng: number
+        }
+        Returns: {
+          additional_info: string
+          age: number
+          clothing_description: string
+          created_at: string
+          distance_km: number
+          distinguishing_features: string
+          full_name: string
+          gender: string
+          height: string
+          id: string
+          last_seen_date: string
+          last_seen_location: string
+          latitude: number
+          longitude: number
+          photo_url: string
+          status: Database["public"]["Enums"]["missing_status"]
+          updated_at: string
+          weight: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
