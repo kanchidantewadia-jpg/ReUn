@@ -6,6 +6,79 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Send SMS notification for high-confidence matches
+async function sendHighConfidenceAlertSMS(
+  supabase: any,
+  personId: string,
+  personName: string,
+  confidence: number,
+  matchReason: string
+) {
+  try {
+    // Get the report owner's phone and preferences
+    const { data: reportData, error: reportError } = await supabase
+      .from('missing_persons')
+      .select('user_id, full_name')
+      .eq('id', personId)
+      .single();
+
+    if (reportError || !reportData) {
+      console.log('Could not find report owner for SMS notification');
+      return;
+    }
+
+    // Get profile with phone number and SMS preference
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('phone_number, sms_notifications, full_name')
+      .eq('user_id', reportData.user_id)
+      .single();
+
+    if (profileError || !profile || !profile.phone_number || !profile.sms_notifications) {
+      console.log('SMS notifications disabled or no phone number for user');
+      return;
+    }
+
+    // Send SMS via Twilio
+    const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
+    const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
+    const TWILIO_PHONE_NUMBER = Deno.env.get('TWILIO_PHONE_NUMBER');
+
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+      console.log('Twilio credentials not configured');
+      return;
+    }
+
+    const confidencePercent = Math.round(confidence * 100);
+    const message = `🚨 REUN Alert: High-confidence match (${confidencePercent}%) found for ${personName}! Reason: ${matchReason}. Please check the app for details.`;
+
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+    const authHeader = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+
+    const smsResponse = await fetch(twilioUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${authHeader}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        To: profile.phone_number,
+        From: TWILIO_PHONE_NUMBER,
+        Body: message,
+      }),
+    });
+
+    if (smsResponse.ok) {
+      console.log(`SMS alert sent successfully for ${personName} to ${profile.phone_number}`);
+    } else {
+      const errorText = await smsResponse.text();
+      console.error('Failed to send SMS alert:', errorText);
+    }
+  } catch (error) {
+    console.error('Error sending SMS alert:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -34,7 +107,7 @@ serve(async (req) => {
     // Fetch all missing persons with photos
     const { data: missingPersons, error: fetchError } = await supabase
       .from('missing_persons')
-      .select('id, full_name, age, gender, last_seen_location, last_seen_date, status, photo_url, height, weight, clothing_description, distinguishing_features, additional_info')
+      .select('id, full_name, age, gender, last_seen_location, last_seen_date, status, photo_url, height, weight, clothing_description, distinguishing_features, additional_info, latitude, longitude')
       .not('photo_url', 'is', null)
       .eq('status', 'missing');
 
@@ -65,6 +138,8 @@ serve(async (req) => {
       clothing_description: string | null;
       distinguishing_features: string | null;
       additional_info: string | null;
+      latitude: number | null;
+      longitude: number | null;
       signed_url?: string;
     }
 
@@ -192,11 +267,26 @@ Return ONLY a valid JSON object in this format:
       })
       .filter(Boolean);
 
+    // Send SMS alerts for high-confidence matches (70%+)
+    const highConfidenceMatches = enrichedMatches.filter((m: any) => m.match_confidence >= 0.7);
+    console.log(`Found ${highConfidenceMatches.length} high-confidence matches`);
+    
+    for (const match of highConfidenceMatches) {
+      await sendHighConfidenceAlertSMS(
+        supabase,
+        match.id,
+        match.full_name,
+        match.match_confidence,
+        match.match_reason || 'Facial features match'
+      );
+    }
+
     return new Response(
       JSON.stringify({ 
         matches: enrichedMatches,
         analysis: analysisResult.analysis,
-        total_compared: personsWithUrls.length
+        total_compared: personsWithUrls.length,
+        sms_alerts_sent: highConfidenceMatches.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

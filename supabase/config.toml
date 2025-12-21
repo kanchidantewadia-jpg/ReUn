@@ -17,3 +17,9 @@ verify_jwt = true
 
 [functions.send-message-notification]
 verify_jwt = true
+
+[functions.send-otp]
+verify_jwt = false
+
+[functions.search-by-image]
+verify_jwt = false
