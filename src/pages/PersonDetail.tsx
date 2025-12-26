@@ -17,6 +17,9 @@ import { messageSchema, cctvUploadSchema, validateFile } from "@/lib/validationS
 import DOMPurify from 'dompurify';
 import PredictiveMap from "@/components/PredictiveMap";
 import { MessageThread } from "@/components/MessageThread";
+import { ShareCaseDialog } from "@/components/ShareCaseDialog";
+import { FollowCaseButton } from "@/components/FollowCaseButton";
+import { useSightingNotifications } from "@/hooks/useSightingNotifications";
 
 const PersonDetail = () => {
   const { id } = useParams();
@@ -33,6 +36,12 @@ const PersonDetail = () => {
   const [isResolving, setIsResolving] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [canViewContactInfo, setCanViewContactInfo] = useState(false);
+
+  // Enable real-time sighting notifications for followed cases
+  useSightingNotifications({
+    userId: user?.id,
+    enabled: !!user,
+  });
 
   useEffect(() => {
     fetchPersonDetails();
@@ -362,7 +371,7 @@ const PersonDetail = () => {
               
               <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start flex-wrap gap-4">
                     <div>
                       <CardTitle className="text-3xl">{person.full_name}</CardTitle>
                       <CardDescription className="text-lg mt-2">
@@ -370,7 +379,7 @@ const PersonDetail = () => {
                         {person.gender && ` • ${person.gender}`}
                       </CardDescription>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 items-center">
                       <Badge className={person.status === 'missing' ? 'bg-red-500' : 'bg-green-500'}>
                         {person.status}
                       </Badge>
@@ -380,6 +389,11 @@ const PersonDetail = () => {
                         </Badge>
                       )}
                     </div>
+                  </div>
+                  {/* Share and Follow buttons */}
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <ShareCaseDialog personId={id!} personName={person.full_name} />
+                    <FollowCaseButton personId={id!} personName={person.full_name} user={user} />
                   </div>
                 </CardHeader>
                 {person.photo_url && (
