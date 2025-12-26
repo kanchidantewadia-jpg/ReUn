@@ -20,6 +20,7 @@ import { MessageThread } from "@/components/MessageThread";
 import { ShareCaseDialog } from "@/components/ShareCaseDialog";
 import { FollowCaseButton } from "@/components/FollowCaseButton";
 import { useSightingNotifications } from "@/hooks/useSightingNotifications";
+import { PosterGenerator } from "@/components/PosterGenerator";
 
 const PersonDetail = () => {
   const { id } = useParams();
@@ -394,6 +395,7 @@ const PersonDetail = () => {
                   <div className="flex flex-wrap gap-2 mt-4">
                     <ShareCaseDialog personId={id!} personName={person.full_name} />
                     <FollowCaseButton personId={id!} personName={person.full_name} user={user} />
+                    <PosterGenerator person={person} />
                   </div>
                 </CardHeader>
                 {person.photo_url && (
