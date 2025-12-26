@@ -14,6 +14,49 @@ export type Database = {
   }
   public: {
     Tables: {
+      case_follows: {
+        Row: {
+          created_at: string
+          id: string
+          missing_person_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          missing_person_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          missing_person_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_follows_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "authenticated_missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_follows_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "missing_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_follows_missing_person_id_fkey"
+            columns: ["missing_person_id"]
+            isOneToOne: false
+            referencedRelation: "public_missing_persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cctv_footage: {
         Row: {
           created_at: string
