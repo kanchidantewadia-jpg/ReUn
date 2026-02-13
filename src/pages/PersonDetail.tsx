@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Calendar, User, Phone, Mail, Upload, Video, Eye, AlertCircle, Lock } from "lucide-react";
+import { MapPin, Calendar, User, Phone, Mail, Upload, Video, Eye, AlertCircle, Lock, ScanFace } from "lucide-react";
+import { FaceRecognitionResults } from "@/components/FaceRecognitionResults";
 import { SignedImage } from "@/components/SignedImage";
 import { messageSchema, cctvUploadSchema, validateFile } from "@/lib/validationSchemas";
 import DOMPurify from 'dompurify';
@@ -532,6 +533,9 @@ const PersonDetail = () => {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Face Recognition Results */}
+              <FaceRecognitionResults personId={id!} user={user} />
             </div>
 
             <div className="space-y-6">

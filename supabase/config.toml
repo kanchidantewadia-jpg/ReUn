@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.search-by-image]
 verify_jwt = false
+
+[functions.notify-sighting-followers]
+verify_jwt = false
