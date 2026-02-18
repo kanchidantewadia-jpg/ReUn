@@ -54,12 +54,21 @@ const Auth = () => {
   }, [resendCooldown]);
 
   useEffect(() => {
-    // Redirect if already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Listen for auth state changes (handles OAuth redirects)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("/");
+        navigate("/", { replace: true });
       }
     });
+
+    // Check if already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/", { replace: true });
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -348,21 +357,21 @@ const Auth = () => {
     setIsLoading(true);
     
     try {
-      // Sign in with a temporary OTP session isn't possible without magic link
-      // So we'll use updateUser after signing in - but user isn't signed in yet
-      // The proper flow: use Supabase's built-in password reset which sends a magic link
-      // But since we're using custom OTP, we need to sign in the user first
-      
-      // For security, we'll use Supabase's native password reset here
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+      const { data, error } = await supabase.functions.invoke("reset-password", {
+        body: {
+          email: resetEmail,
+          code: resetOtpCode,
+          newPassword: newPassword,
+        },
       });
       
-      if (error) throw error;
+      if (error || data?.error) {
+        throw new Error(data?.error || error?.message || "Failed to reset password");
+      }
       
       toast({
-        title: "Password reset link sent",
-        description: "Check your email for a link to reset your password.",
+        title: "Password updated!",
+        description: "You can now sign in with your new password.",
       });
       
       handleBackToSignIn();
